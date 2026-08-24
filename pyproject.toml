@@ -26,8 +26,8 @@ dev = [
     "mypy>=1.11",
     "types-requests",
     "types-PyYAML",
-    "semgrep>=1.173",
 ]
+security = ["semgrep>=1.173"]
 linux = ["gunicorn>=22.0"]
 
 [tool.setuptools.packages.find]

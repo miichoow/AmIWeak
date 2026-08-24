@@ -99,6 +99,9 @@ cd amiweak
 python -m venv venv
 venv/bin/pip install -e ".[dev]"          # Windows: .\venv\Scripts\pip
 venv/bin/pip install -e ".[dev,linux]"    # adds gunicorn
+venv/bin/pip install -e ".[dev,security]" # adds semgrep, kept separate since
+                                           # its dependency pins otherwise force
+                                           # pip into slow backtracking against dev
 ```
 
 Node.js must also be on `PATH`. Strength scoring (`POST /api/v1/check`'s
@@ -936,6 +939,9 @@ mypy
 semgrep scan --config p/security-audit --config p/secrets \
   --config p/python --config p/flask --config p/owasp-top-ten --metrics=off .
 ```
+
+`semgrep` lives in its own `security` extra, not `dev` — install with
+`.[dev,security]` to get it (see [Install](#install)).
 
 `tests/checks/test_real_payloads.py` parses verbatim slices of live HIBP and
 weakpass responses, kept in `tests/fixtures/`. The hand-written parser tests only
