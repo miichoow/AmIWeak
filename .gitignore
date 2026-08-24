@@ -1,0 +1,18 @@
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.idea/
+config.local.yaml
+burp-ca.pem
+
+# Generated denylist digest caches (built at startup from the word file)
+*.amwk-digests
+*.amwk-digests.lock
+denylist.txt

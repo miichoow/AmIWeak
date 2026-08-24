@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "amiweak"
+version = "1.0.0"
+description = "Check whether a password is breached, precomputed, or weak."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "miichoow" }]
+dependencies = [
+    "flask>=3.0",
+    "requests>=2.31",
+    "PyYAML>=6.0",
+    "hcrulepy>=1.1",
+    "filelock>=3.12",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "responses>=0.25",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "types-requests",
+    "types-PyYAML",
+    "semgrep>=1.173",
+]
+linux = ["gunicorn>=22.0"]
+
+[tool.setuptools.packages.find]
+include = ["amiweak*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.coverage.run]
+source = ["amiweak", "run", "wsgi"]
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+exclude_lines = ["pragma: no cover", "if __name__ == .__main__.:"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+# Scratch worktrees and Markdown hold illustrative snippets (often partial or indented
+# out of context), not real source — formatting them rewrites the prose's meaning.
+extend-exclude = [".claude", "venv", ".venv", "*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+files = ["amiweak", "run.py", "wsgi.py"]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true

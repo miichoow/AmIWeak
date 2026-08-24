@@ -1,0 +1,8 @@
+# AmIWeak organisational denylist — copy to denylist.txt and set denylist.path.
+# One entry per line. '#' comments and blank lines are ignored. Entries shorter
+# than min_token_length (after normalization) are a startup error. Entries may
+# be known-bad passwords, so this file is a secret: keep it out of logs and VCS.
+acme
+widget
+gadget
+exampleville

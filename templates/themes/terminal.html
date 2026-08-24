@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>AmIWeak — is your password any good?</title>
+  <link rel="stylesheet" href="/static/css/themes/terminal.css">
+  <link rel="icon" type="image/png" sizes="1024x1024" href="/static/favicons/terminal.png">
+</head>
+<body>
+  <main class="shell">
+    <div class="window">
+      <div class="titlebar">
+        <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="title">amiweak — password exposure scanner</span>
+        <span class="uplink"><i aria-hidden="true"></i>hibp · weakpass · denylist</span>
+      </div>
+
+      <div class="session">
+        <header class="masthead">
+          <p class="banner" aria-hidden="true">amiweak v1.0 // 3 sources armed</p>
+          <h1>AmIWeak</h1>
+          <p class="tagline">
+            <span class="prompt">&gt;</span> scoring runs in this tab. lookups send five
+            characters of a hash, never the password.
+          </p>
+        </header>
+
+        <form id="check-form" method="post" action="/api/v1/check" autocomplete="off" novalidate>
+          <div class="field">
+            <label for="password"><span class="prompt">$</span> password</label>
+            <div class="input-wrap">
+              <span class="caret" aria-hidden="true">&gt;</span>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autocomplete="new-password"
+                autocapitalize="off"
+                autocorrect="off"
+                spellcheck="false"
+                placeholder="stdin"
+                aria-describedby="strength-summary">
+              <button type="button" class="reveal" id="reveal" aria-pressed="false" aria-label="Show password">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3.2"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="gauge">
+            <span class="gauge-key">entropy</span>
+            <div class="meter" id="meter" role="img" aria-label="Password strength">
+              <span data-seg="0"></span><span data-seg="1"></span><span data-seg="2"></span>
+              <span data-seg="3"></span><span data-seg="4"></span>
+            </div>
+            <div class="strength" id="strength-summary" aria-live="polite">
+              <span class="strength-label" id="strength-label">awaiting input</span>
+              <span class="strength-time" id="strength-time"></span>
+            </div>
+          </div>
+
+          <ul class="hints" id="hints"></ul>
+
+          <button type="submit" class="submit" id="submit">
+            <span class="submit-label">run check</span>
+            <span class="spinner" aria-hidden="true"></span>
+          </button>
+        </form>
+
+        <section class="verdict" id="verdict" role="status" aria-live="polite" hidden>
+          <div class="verdict-head">
+            <span class="verdict-dot" aria-hidden="true"></span>
+            <p class="verdict-message" id="verdict-message"></p>
+          </div>
+          <p class="verdict-note" id="verdict-note" hidden></p>
+          <ul class="breakdown" id="breakdown"></ul>
+        </section>
+
+        <footer class="footnote">
+          <p><span class="prompt">#</span> no logging · no storage · <a href="/docs">man amiweak(1)</a></p>
+        </footer>
+      </div>
+    </div>
+  </main>
+
+  <script src="/static/vendor/zxcvbn-ts-core.js" defer></script>
+  <script src="/static/vendor/zxcvbn-ts-language-common.js" defer></script>
+  <script src="/static/vendor/zxcvbn-ts-language-en.js" defer></script>
+  <script src="/static/js/app.js" defer></script>
+</body>
+</html>

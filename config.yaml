@@ -1,0 +1,149 @@
+# AmIWeak configuration.
+#
+# Every key below can also be set from the environment: uppercase the path and
+# join the levels with a double underscore, e.g. AMIWEAK_SERVER__PORT=9000 or
+# AMIWEAK_CHECKS__HIBP__ENABLED=false. Environment values win over this file.
+#
+# Unknown keys are a startup error, not a warning.
+
+server:
+  host: "127.0.0.1"
+  port: 8080
+
+# Outbound proxy for the two upstream APIs. Leave null to go direct.
+proxy:
+  http: null
+  https: null            # e.g. "http://proxy.example.lu:3128"
+  no_proxy: null
+
+http:
+  timeout: 5.0           # per-request, seconds. Every check inherits this
+                         # unless it sets its own checks.<name>.timeout.
+  verify_tls: true       # keep this on
+  ca_bundle: null        # PEM of your CA, if your network terminates TLS.
+                         # Prefer this over verify_tls: false — you keep
+                         # verification, you just trust a different root.
+  user_agent: "AmIWeak/1.0"
+
+# The two server-side lookups. Both are optional and both run concurrently.
+# on_error: fail_open  -> an unreachable backend does not block the verdict
+#           fail_closed -> an unreachable backend makes the verdict "error"
+# timeout:  null -> inherit http.timeout; a number overrides it for that
+#           backend alone, e.g. a slower upstream that deserves longer.
+checks:
+  hibp:
+    enabled: true
+    timeout: null
+    on_error: fail_open
+    algorithms: [sha1, ntlm]
+  weakpass:
+    enabled: true
+    timeout: null
+    on_error: fail_open
+    algorithms: [sha1, ntlm]
+  denylist:
+    enabled: true
+    timeout: null         # unused: this checker is an in-memory lookup
+    on_error: fail_open   # present for uniformity; this checker cannot fail
+    algorithms: [sha1]
+
+# Bulk auditing of pre-hashed digests. See POST /api/v1/check/batch.
+batch:
+  enabled: true
+  max_items: 1000        # 400 above this; chunk larger sets client-side
+  max_concurrency: 8     # in-flight upstream requests per batch
+  deadline: 120.0        # whole batch, seconds — raise this if you raise max_items
+  max_label_length: 128
+  # A separate bucket from policy.rate_limit, which is sized for interactive
+  # use. One full uncached 1000-item batch costs ~2000 prefixes.
+  rate_limit:
+    enabled: true
+    prefixes: 5000       # unique uncached prefixes; cache hits are free
+    per_seconds: 3600
+
+# Parsed upstream ranges, keyed by (backend, algorithm, prefix).
+# Roughly 40-60 MB per worker process at 256 entries.
+cache:
+  enabled: true
+  max_entries: 256
+  ttl_seconds: 3600
+
+# Cross-worker state. With gunicorn's default four workers, rate-limit buckets
+# and metric counters otherwise live in each worker separately -- so the
+# effective allowance is roughly `requests` times the worker count, and a
+# /metrics scrape sees one worker's view. Setting `path` puts both in one
+# SQLite file that every worker opens.
+#
+# Leave it null for `run.py`, which is a single process and has nothing to share.
+# The prefix cache is deliberately NOT shared; see the README.
+state:
+  path: null             # e.g. "amiweak-state.db"; null keeps per-worker state
+  busy_timeout: 5.0      # seconds a worker waits for the writer lock
+
+# Organisation-specific denylist. Off unless `path` is set. A word file is
+# expanded through hashcat rules into a SHA-1 set, persisted next to the file
+# and regenerated only when the file or its rules change. See the README.
+denylist:
+  path: null                       # e.g. "dictionnaries/dictionnary.txt" -- set to enable
+  min_token_length: 4              # entries normalizing shorter than this are a startup error
+  match_plaintext: true            # substring hard-ban on POST /api/v1/check
+  rules: []                        # e.g. ["rules/corporate.rule", ...] -- expands the word list via hashcat rules
+  max_digests: 1000000             # generation aborts past this many digests
+  cache_path: null                 # null -> "<path>.amwk-digests" beside the word file
+
+policy:
+  overall_deadline: 8.0  # seconds allowed for the whole fan-out
+  min_length: 8          # plaintext only: /api/v1/check, the web page.
+                         # Unenforceable on the hash endpoints -- see README.
+  rate_limit:
+    enabled: true
+    requests: 30
+    per_seconds: 60      # per client IP, per worker process
+
+# Strength scoring runs in the browser via zxcvbn-ts, and again server-side
+# on POST /api/v1/check using the same vendored bundle under Node. `enabled`
+# and `min_score` are served to the page by GET /api/v1/config; `timeout` is
+# server-side-only and is not exposed there.
+strength:
+  enabled: true
+  min_score: 3           # zxcvbn-ts scores 0 (worst) to 4 (best)
+  timeout: 2.0            # seconds to wait for the Node scoring worker
+
+# The OpenAPI document and the in-browser API console.
+#
+# The console fires real requests at this server, including against
+# POST /api/v1/check, which takes a plaintext password. Set this to false on
+# any deployment where a password-accepting console on a reachable URL is not
+# wanted; both /docs and /api/v1/openapi.json then return 404.
+docs:
+  enabled: true
+
+# Which design the page is served in. Only the look changes: same markup
+# contract, same API, same client-side scoring.
+#
+#   original   the default. Aurora gradient over a glass card, dark first.
+#   vault      institutional. Solid surfaces, vault blue, full light + dark.
+#   terminal   security-scanner CLI. Monospace, phosphor green on black.
+#   editorial  oversized serif headline, hairline rules, one accent. Print-calm.
+#   bento      dark dashboard. One tile per idea, gradient on the CTA only.
+#
+# An unknown name is a startup error. All fonts are vendored under
+# static/vendor/fonts, so no theme reaches out to a third-party origin.
+ui:
+  theme: original
+
+# Every string the user sees. Change them freely; nothing is hardcoded.
+messages:
+  safe: "This password looks fine."
+  leaked: "This password has appeared in a known data breach."
+  precomputed: "This password is in a public password-cracking list."
+  weak: "This password is too easy to guess."
+  too_short: "This password is too short."
+  degraded: "One of the checks could not be reached, so this result is incomplete."
+  error: "Something went wrong while checking this password."
+  batch_complete: "Checked {total} passwords."
+  denylisted: "This password contains something specific to your organisation."
+
+logging:
+  level: INFO
+  access_log: true

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>AmIWeak — is your password any good?</title>
+  <link rel="stylesheet" href="/static/css/themes/vault.css">
+  <link rel="icon" type="image/png" sizes="1024x1024" href="/static/favicons/vault-light.png" media="(prefers-color-scheme: light)">
+  <link rel="icon" type="image/png" sizes="1024x1024" href="/static/favicons/vault-dark.png" media="(prefers-color-scheme: dark)">
+</head>
+<body>
+  <a class="skip" href="#check-form">Skip to the password field</a>
+
+  <header class="topbar">
+    <span class="brand">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="4" y="10.5" width="16" height="10" rx="2.5"/>
+        <path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/>
+        <circle cx="12" cy="15.5" r="1.4" fill="currentColor" stroke="none"/>
+      </svg>
+      Am<b>I</b>Weak
+    </span>
+    <span class="topbar-note">Password exposure check</span>
+  </header>
+
+  <main class="shell">
+    <div class="intro">
+      <h1>Has your password already leaked?</h1>
+      <p class="tagline">
+        We score it here in your browser, then ask two breach databases about it
+        without ever sending them the password.
+      </p>
+    </div>
+
+    <form class="card" id="check-form" method="post" action="/api/v1/check" autocomplete="off" novalidate>
+      <div class="field">
+        <label for="password">Password</label>
+        <div class="input-wrap">
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autocomplete="new-password"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+            placeholder="Type or paste it here"
+            aria-describedby="strength-summary">
+          <button type="button" class="reveal" id="reveal" aria-pressed="false" aria-label="Show password">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3.2"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="gauge">
+        <div class="meter" id="meter" role="img" aria-label="Password strength">
+          <span data-seg="0"></span><span data-seg="1"></span><span data-seg="2"></span>
+          <span data-seg="3"></span><span data-seg="4"></span>
+        </div>
+        <div class="strength" id="strength-summary" aria-live="polite">
+          <span class="strength-label" id="strength-label">Waiting for input</span>
+          <span class="strength-time" id="strength-time"></span>
+        </div>
+      </div>
+
+      <ul class="hints" id="hints"></ul>
+
+      <button type="submit" class="submit" id="submit">
+        <span class="submit-label">Check this password</span>
+        <span class="spinner" aria-hidden="true"></span>
+      </button>
+    </form>
+
+    <section class="verdict" id="verdict" role="status" aria-live="polite" hidden>
+      <div class="verdict-head">
+        <span class="verdict-dot" aria-hidden="true"></span>
+        <p class="verdict-message" id="verdict-message"></p>
+      </div>
+      <p class="verdict-note" id="verdict-note" hidden></p>
+      <ul class="breakdown" id="breakdown"></ul>
+    </section>
+
+    <ul class="assurances">
+      <li>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4.5 6.2v5.4c0 4.4 3.1 8.5 7.5 9.8 4.4-1.3 7.5-5.4 7.5-9.8V6.2Z"/><path d="m9 12 2.2 2.2L15.4 10"/></svg>
+        <b>Scored locally</b>
+        <span>Strength never leaves the tab.</span>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h9"/></svg>
+        <b>Hash prefix only</b>
+        <span>Breach lookups see five characters.</span>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v13a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2Z"/><path d="M9.5 3.5h5M10 10.5v6M14 10.5v6"/></svg>
+        <b>Nothing kept</b>
+        <span>No logging, no storage, no cache.</span>
+      </li>
+    </ul>
+  </main>
+
+  <footer class="footnote">
+    <p>Powered by Have I Been Pwned and weakpass wordlists. <a href="/docs">API documentation</a></p>
+  </footer>
+
+  <script src="/static/vendor/zxcvbn-ts-core.js" defer></script>
+  <script src="/static/vendor/zxcvbn-ts-language-common.js" defer></script>
+  <script src="/static/vendor/zxcvbn-ts-language-en.js" defer></script>
+  <script src="/static/js/app.js" defer></script>
+</body>
+</html>

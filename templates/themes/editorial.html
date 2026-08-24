@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>AmIWeak — is your password any good?</title>
+  <link rel="stylesheet" href="/static/css/themes/editorial.css">
+  <link rel="icon" type="image/png" sizes="1024x1024" href="/static/favicons/editorial-light.png" media="(prefers-color-scheme: light)">
+  <link rel="icon" type="image/png" sizes="1024x1024" href="/static/favicons/editorial-dark.png" media="(prefers-color-scheme: dark)">
+</head>
+<body>
+  <main class="shell">
+    <section class="lede">
+      <p class="eyebrow">AmIWeak</p>
+      <h1>Am I <em>weak</em>?</h1>
+      <p class="tagline">
+        Two breach databases, one wordlist, and an honest answer. Your password is
+        scored in this tab and never sent anywhere in full.
+      </p>
+      <dl class="ledger">
+        <div><dt>01</dt><dd>Scored locally with zxcvbn</dd></div>
+        <div><dt>02</dt><dd>Only a five-character hash prefix leaves the browser</dd></div>
+        <div><dt>03</dt><dd>Nothing is logged, cached, or stored</dd></div>
+      </dl>
+    </section>
+
+    <section class="console">
+      <form id="check-form" method="post" action="/api/v1/check" autocomplete="off" novalidate>
+        <div class="field">
+          <label for="password">Your password</label>
+          <div class="input-wrap">
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autocomplete="new-password"
+              autocapitalize="off"
+              autocorrect="off"
+              spellcheck="false"
+              placeholder="Type it here"
+              aria-describedby="strength-summary">
+            <button type="button" class="reveal" id="reveal" aria-pressed="false" aria-label="Show password">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3.2"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="gauge">
+          <div class="meter" id="meter" role="img" aria-label="Password strength">
+            <span data-seg="0"></span><span data-seg="1"></span><span data-seg="2"></span>
+            <span data-seg="3"></span><span data-seg="4"></span>
+          </div>
+          <div class="strength" id="strength-summary" aria-live="polite">
+            <span class="strength-label" id="strength-label">Waiting for input</span>
+            <span class="strength-time" id="strength-time"></span>
+          </div>
+        </div>
+
+        <ul class="hints" id="hints"></ul>
+
+        <button type="submit" class="submit" id="submit">
+          <span class="submit-label">Check it</span>
+          <span class="spinner" aria-hidden="true"></span>
+        </button>
+      </form>
+
+      <section class="verdict" id="verdict" role="status" aria-live="polite" hidden>
+        <div class="verdict-head">
+          <span class="verdict-dot" aria-hidden="true"></span>
+          <p class="verdict-message" id="verdict-message"></p>
+        </div>
+        <p class="verdict-note" id="verdict-note" hidden></p>
+        <ul class="breakdown" id="breakdown"></ul>
+      </section>
+    </section>
+  </main>
+
+  <footer class="footnote">
+    <p>Have I Been Pwned · weakpass · <a href="/docs">API documentation</a></p>
+  </footer>
+
+  <script src="/static/vendor/zxcvbn-ts-core.js" defer></script>
+  <script src="/static/vendor/zxcvbn-ts-language-common.js" defer></script>
+  <script src="/static/vendor/zxcvbn-ts-language-en.js" defer></script>
+  <script src="/static/js/app.js" defer></script>
+</body>
+</html>

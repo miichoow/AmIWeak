@@ -1,0 +1,42 @@
+/* Wrapper chrome around the vendored Swagger UI stylesheet, which is loaded
+   first and left unmodified. */
+
+.docs-masthead {
+  padding: 1.5rem 1.5rem 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.docs-masthead h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+  letter-spacing: -0.01em;
+}
+
+.docs-masthead .accent {
+  color: #6366f1;
+}
+
+.docs-masthead a {
+  color: #6366f1;
+}
+
+.docs-warning {
+  margin: 1rem 1.5rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid #f59e0b;
+  border-left-width: 4px;
+  border-radius: 6px;
+  background: #fffbeb;
+  color: #78350f;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+/* No dark-mode block here on purpose. Nothing on this page sets a page
+   background or `color-scheme`, and the vendored swagger-ui.css is
+   light-only, so `prefers-color-scheme: dark` reflects the OS setting
+   regardless of anything this stylesheet declares -- a page-level
+   `color-scheme: light` would not stop the browser from matching it. The only
+   way to avoid a dark warning box floating on an otherwise white page is to
+   not have dark rules for it at all. */

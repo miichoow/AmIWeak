@@ -1,0 +1,588 @@
+openapi: 3.1.0
+
+info:
+  title: AmIWeak
+  version: "1.0.0"
+  description: |
+    Check whether a password is breached, precomputed, or weak.
+
+    Every password check is a POST with a JSON body. The password never
+    appears in a URL, where it would be recorded by every proxy and access
+    log between the client and this server.
+
+    Note the deliberate asymmetry in the `error` field. On `/check` and
+    `/check/hash` it follows the *verdict*, so a leaked password is
+    `error: true`. On `/check/batch` it describes the *request*, so a batch
+    full of leaked passwords is `error: false`. Each response schema below
+    says which it is.
+
+servers:
+  - url: /
+    description: This server.
+
+tags:
+  - name: check
+    description: Password and digest checking.
+  - name: ops
+    description: Health and metrics.
+
+paths:
+  /api/v1/check:
+    post:
+      tags: [check]
+      summary: Check a plaintext password
+      description: |
+        The password is scored, hashed, and dropped. Only the first characters
+        of its SHA-1 hash are sent to the upstream backends.
+
+        Requires the SHA-1 algorithm to be enabled on at least one backend.
+        Subject to `policy.rate_limit`, shared with `/check/hash`.
+      operationId: checkPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password:
+                  type: string
+                  minLength: 1
+                  description: The plaintext password to check.
+            examples:
+              weak:
+                summary: A password every list already has
+                value: {password: "password123"}
+      responses:
+        "200":
+          description: |
+            The check completed. `error` follows the verdict: it is `true` for
+            anything other than `safe`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckResponse"
+        "400":
+          description: |
+            The body was not a JSON object with a non-empty string `password`,
+            or no enabled backend answers for the SHA-1 algorithm.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+        "429":
+          description: Rate limit exceeded for this client address.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+        "500":
+          description: The check failed. The message is the configured `messages.error`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+
+  /api/v1/check/hash:
+    post:
+      tags: [check]
+      summary: Check a pre-computed digest
+      description: |
+        `/check` with the hashing moved to the client, so the password never
+        leaves the caller.
+
+        `policy.min_length` is not enforced here and cannot be: a digest does
+        not carry the length of the password it came from, so the `too_short`
+        verdict is unreachable on this endpoint. Callers who need a length
+        policy apply it before hashing.
+
+        Subject to `policy.rate_limit`, the same bucket `/check` uses.
+      operationId: checkHash
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hash]
+              properties:
+                hash:
+                  type: string
+                  pattern: "^[0-9a-fA-F]+$"
+                  description: |
+                    Hex digest. 40 characters for `sha1`, 32 for `ntlm`.
+                algorithm:
+                  $ref: "#/components/schemas/Algorithm"
+            examples:
+              sha1:
+                summary: SHA-1 of "password"
+                value:
+                  hash: "5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8"
+                  algorithm: sha1
+      responses:
+        "200":
+          description: |
+            The check completed. `error` follows the verdict, as on `/check`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HashCheckResponse"
+        "400":
+          description: |
+            The body was malformed, the digest was not valid hex of the right
+            length, or no enabled backend answers for the requested algorithm.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+        "429":
+          description: Rate limit exceeded for this client address.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+        "500":
+          description: The check failed. The message is the configured `messages.error`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+
+  /api/v1/check/batch:
+    post:
+      tags: [check]
+      summary: Check many digests at once
+      description: |
+        Bulk auditing of pre-hashed digests, for example an NTLM dump from
+        Active Directory.
+
+        Charged against `batch.rate_limit`, a separate bucket from the
+        interactive one, and metered in unique uncached upstream prefixes
+        rather than requests: cache hits are nearly free, but every batch
+        costs at least one token.
+
+        Returns 404 when `batch.enabled` is false.
+      operationId: checkBatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [algorithm, items]
+              properties:
+                algorithm:
+                  $ref: "#/components/schemas/Algorithm"
+                items:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: "#/components/schemas/BatchItem"
+            examples:
+              ntlm:
+                summary: Two accounts from an NTLM dump
+                value:
+                  algorithm: ntlm
+                  items:
+                    - {label: "alice", hash: "8846f7eaee8fb117ad06bdd830b7586c"}
+                    - {label: "bob", hash: "32ed87bdb5fdc5e9cba88547376818d4"}
+      responses:
+        "200":
+          description: |
+            The batch completed. `error` describes the *request*, not the
+            contents: a batch full of leaked passwords is `error: false`.
+            Per-item failures appear as the `error` verdict and in
+            `summary.error`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchResponse"
+        "400":
+          description: |
+            The body was malformed, `items` was empty or over `batch.max_items`,
+            a label was missing or over `batch.max_label_length`, a hash was not
+            valid hex of the right length, or no enabled backend answers for the
+            requested algorithm.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+        "404":
+          description: Batch checking is disabled on this deployment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+        "429":
+          description: Batch rate limit exceeded for this client address.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+        "500":
+          description: The batch failed. The message is the configured `messages.error`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope"
+
+  /api/v1/config:
+    get:
+      tags: [check]
+      summary: Client configuration
+      description: |
+        The narrow subset of configuration the web page needs: strength
+        settings and message copy. Proxies, timeouts, and which backends are
+        wired up are deliberately not exposed.
+      operationId: getClientConfig
+      responses:
+        "200":
+          description: The client configuration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientConfig"
+
+  /healthz:
+    get:
+      tags: [ops]
+      summary: Liveness and last-known backend state
+      description: |
+        Reports what real traffic has already observed. It deliberately makes
+        no outbound calls of its own -- a health endpoint that probed the
+        upstreams would turn every monitoring system into an amplifier against
+        them. A backend that has never been called reports `null` for both
+        timestamps.
+      operationId: getHealth
+      responses:
+        "200":
+          description: |
+            Always 200 while the process is alive. Read `status` for the
+            verdict; it is `degraded` when an enabled check has a recorded
+            error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+
+  /metrics:
+    get:
+      tags: [ops]
+      summary: Counter snapshot
+      description: |
+        A JSON snapshot of the in-process counters. Per worker process, reset
+        on restart. Not Prometheus exposition format.
+      operationId: getMetrics
+      responses:
+        "200":
+          description: The counter snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Metrics"
+
+  /metrics/prometheus:
+    get:
+      tags: [ops]
+      summary: Counters in Prometheus text exposition format
+      description: >
+        The same counters as `/metrics`, rendered in the text exposition format
+        scrapers read. Both views are rendered from one snapshot, so they cannot
+        disagree. Counter and label semantics are documented in each family's
+        HELP text.
+      operationId: getMetricsPrometheus
+      responses:
+        "200":
+          description: A scrape.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: |
+                # HELP amiweak_checks_total Verdicts resolved.
+                # TYPE amiweak_checks_total counter
+                amiweak_checks_total 3
+
+components:
+  schemas:
+
+    Envelope:
+      type: object
+      description: The shape every endpoint returns, success or failure.
+      required: [error, errorMessage]
+      properties:
+        error:
+          type: boolean
+          description: |
+            Meaning differs by endpoint. On `/check` and `/check/hash` it
+            follows the verdict; on `/check/batch` it describes the request.
+        errorMessage:
+          type: string
+          description: |
+            Human-readable text, drawn from the configured `messages` for
+            check outcomes and fixed for request errors. Never contains
+            anything the client sent.
+
+    Verdict:
+      type: string
+      description: |
+        Resolved worst-first. `denylisted` loses to `leaked` and `precomputed`
+        on the same password.
+      enum:
+        - safe
+        - leaked
+        - precomputed
+        - denylisted
+        - too_short
+        - weak
+        - error
+
+    Algorithm:
+      type: string
+      description: The digest algorithm. Defaults to `sha1` where optional.
+      enum:
+        - sha1
+        - ntlm
+      default: sha1
+
+    CheckResult:
+      type: object
+      description: The outcome of one backend lookup.
+      required: [name, enabled, applicable, hit, count, error]
+      properties:
+        name:
+          type: string
+          description: The backend name, e.g. `hibp`, `weakpass`, `denylist`.
+        enabled:
+          type: boolean
+        applicable:
+          type: boolean
+          description: |
+            False when the backend cannot answer for the requested algorithm at
+            all. That is not an error and does not make the result degraded.
+        hit:
+          type: [boolean, "null"]
+          description: Null when the check did not complete.
+        count:
+          type: [integer, "null"]
+          description: |
+            Occurrence count where the provider reports one, null where it does
+            not.
+        error:
+          type: [string, "null"]
+          description: |
+            A short, closed-vocabulary reason such as `timeout`, `network`,
+            `internal`, or `http_503`. Never upstream exception text, which can
+            embed the requested URL.
+
+    CheckResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          required: [verdict, degraded, checks]
+          properties:
+            verdict:
+              $ref: "#/components/schemas/Verdict"
+            degraded:
+              type: boolean
+              description: True when a backend could not be reached and the verdict is incomplete.
+            checks:
+              type: array
+              items:
+                $ref: "#/components/schemas/CheckResult"
+            degradedMessage:
+              type: string
+              description: Present only when `degraded` is true.
+
+    HashCheckResponse:
+      allOf:
+        - $ref: "#/components/schemas/CheckResponse"
+        - type: object
+          required: [algorithm]
+          properties:
+            algorithm:
+              $ref: "#/components/schemas/Algorithm"
+
+    BatchItem:
+      type: object
+      required: [label, hash]
+      properties:
+        label:
+          type: string
+          minLength: 1
+          description: |
+            Your identifier for this entry, echoed back unchanged. Typically a
+            username. Never logged.
+        hash:
+          type: string
+          pattern: "^[0-9a-fA-F]+$"
+          description: Hex digest. 40 characters for `sha1`, 32 for `ntlm`.
+
+    BatchSummary:
+      type: object
+      description: |
+        Counts per verdict. Every key is always present, whether or not that
+        verdict occurred.
+      required: [total, leaked, precomputed, denylisted, safe, error]
+      properties:
+        total: {type: integer}
+        leaked: {type: integer}
+        precomputed: {type: integer}
+        denylisted: {type: integer}
+        safe: {type: integer}
+        error: {type: integer}
+
+    BatchResult:
+      type: object
+      required: [label, verdict, degraded, checks]
+      properties:
+        label:
+          type: string
+          description: The label from the request, echoed unchanged.
+        verdict:
+          $ref: "#/components/schemas/Verdict"
+        degraded:
+          type: boolean
+        checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/CheckResult"
+
+    BatchResponse:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          required: [algorithm, degraded, summary, results]
+          properties:
+            algorithm:
+              $ref: "#/components/schemas/Algorithm"
+            degraded:
+              type: boolean
+              description: True when any item in the batch was degraded.
+            summary:
+              $ref: "#/components/schemas/BatchSummary"
+            results:
+              type: array
+              items:
+                $ref: "#/components/schemas/BatchResult"
+
+    ClientConfig:
+      type: object
+      required: [strength, messages]
+      properties:
+        strength:
+          type: object
+          required: [enabled, min_score, min_length]
+          properties:
+            enabled: {type: boolean}
+            min_score:
+              type: integer
+              minimum: 0
+              maximum: 4
+              description: The zxcvbn-ts score below which a password is called weak.
+            min_length:
+              type: integer
+              description: From `policy.min_length`. Plaintext endpoints only.
+        messages:
+          type: object
+          description: The configured copy for every outcome.
+          required:
+            [safe, leaked, precomputed, denylisted, weak, too_short, degraded, error]
+          properties:
+            safe: {type: string}
+            leaked: {type: string}
+            precomputed: {type: string}
+            denylisted: {type: string}
+            weak: {type: string}
+            too_short: {type: string}
+            degraded: {type: string}
+            error: {type: string}
+
+    HealthCheck:
+      type: object
+      required: [enabled, last_ok, last_error]
+      properties:
+        enabled: {type: boolean}
+        last_ok:
+          type: [string, "null"]
+          description: Timestamp of the last successful call, or null if there has been none.
+        last_error:
+          type: [string, "null"]
+          description: The last recorded error reason, or null.
+
+    Health:
+      type: object
+      required: [status, version, uptime_seconds, checks]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        version:
+          type: string
+        uptime_seconds:
+          type: number
+        checks:
+          type: object
+          description: |
+            Keyed by backend name, plus `zxcvbn` when strength scoring is
+            enabled.
+          additionalProperties:
+            $ref: "#/components/schemas/HealthCheck"
+
+    LatencyBucket:
+      type: object
+      required: [count, sum, max]
+      properties:
+        count: {type: integer}
+        sum: {type: number}
+        max: {type: number}
+
+    Metrics:
+      type: object
+      required:
+        - uptime_seconds
+        - checks_total
+        - verdicts_total
+        - backend_requests_total
+        - backend_errors_total
+        - backend_latency_seconds
+        - cache_hits_total
+        - cache_misses_total
+        - batch_requests_total
+        - batch_items_total
+        - backend_algorithm_total
+        - store_errors_total
+      properties:
+        uptime_seconds: {type: number}
+        checks_total: {type: integer}
+        verdicts_total:
+          type: object
+          additionalProperties: {type: integer}
+        backend_requests_total:
+          type: object
+          additionalProperties: {type: integer}
+        backend_errors_total:
+          type: object
+          additionalProperties: {type: integer}
+        backend_latency_seconds:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/LatencyBucket"
+        cache_hits_total:
+          type: object
+          additionalProperties: {type: integer}
+        cache_misses_total:
+          type: object
+          additionalProperties: {type: integer}
+        batch_requests_total: {type: integer}
+        batch_items_total: {type: integer}
+        backend_algorithm_total:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: {type: integer}
+        store_errors_total:
+          type: integer
+          description: >-
+            State store operations that fell back to per-process state.
