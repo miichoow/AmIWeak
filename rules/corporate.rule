@@ -1,0 +1,22 @@
+# Corporate denylist rules. Safe subset only: no x/O range ops, no X ( ) = % ~
+# ?C — hcrulepy marks those unconfirmed against hashcat on short words, and a
+# corporate list is mostly short words. Point denylist.rules elsewhere for more.
+:
+l
+u
+c
+$1
+$2
+$0$2$6
+$2$0$2$6
+$!
+$@
+$#
+$1$2$3
+^1
+sa@
+se3
+si1
+so0
+ss$
+sa@se3si1so0ss$
