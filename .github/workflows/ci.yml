@@ -45,6 +45,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Install package with dev extras
         run: pip install -e ".[dev]"
 
