@@ -20,7 +20,7 @@ Four signals go into the answer.
 
 The two network lookups run at the same time, so a check costs the slower of
 the two round trips rather than their sum. The denylist joins the same fan-out
-but never leaves the process — it is a dict lookup against a digest set built
+but never leaves the process: it is a dict lookup against a digest set built
 at startup. Strength scoring happens locally as you type, and again server-side
 when `POST /api/v1/check` is submitted, using the identical vendored bundles in
 both places so the two never disagree.
@@ -33,8 +33,8 @@ HIBP and weakpass both answer for two digest algorithms, SHA-1 and NTLM; see
 Everything else in the design bends around this one.
 
 The plaintext reaches exactly three places, all of them inside this deployment:
-the route handler's local, `CheckRunner.evaluate`, and — when strength scoring
-is on — the Node worker's stdin, which is a pipe to a child process on the same
+the route handler's local, `CheckRunner.evaluate`, and, when strength scoring
+is on, the Node worker's stdin, which is a pipe to a child process on the same
 host. `evaluate` scores it, measures it, tests it against the denylist tokens,
 hashes it, and drops it; every checker downstream of `sha1_hex` sees a digest
 and nothing else. Only the hash prefix leaves the machine: five characters to
@@ -81,7 +81,7 @@ just typed into some website is a password you might want to change regardless.
 ### NTLM support
 
 Both server-side backends also answer NTLM prefix queries. Nothing in this
-codebase computes an NTLM digest, though. There is no MD4 anywhere here — it's
+codebase computes an NTLM digest, though. There is no MD4 anywhere here: it's
 absent from `hashlib` on OpenSSL 3 builds, and the cleanest way around that
 problem is to not need it. The batch endpoint takes a digest, not a password,
 so an NTLM check never involves plaintext at any point: not in the request,
@@ -107,7 +107,7 @@ process, so the server and the page always agree on a password's score. Set
 `strength.enabled: false` to run without Node.
 
 `hcrulepy` and `filelock` are regular Python dependencies pulled in by
-`pip install -e .` — no extra setup, and no hashcat binary of any kind is
+`pip install -e .`, no extra setup, and no hashcat binary of any kind is
 required or present. See [Organisational denylist](#organisational-denylist).
 
 ## Run
@@ -184,7 +184,7 @@ reads to size the worker pool (default `4`).
 | `batch.enabled` | `true` | Whether `/api/v1/check/batch` answers requests; `false` returns 404 rather than advertising a disabled route |
 | `batch.max_items` | `1000` | Items per request; 400 above this |
 | `batch.max_concurrency` | `8` | In-flight upstream requests per batch |
-| `batch.deadline` | `120.0` | Seconds for the whole batch — raise with `max_items` |
+| `batch.deadline` | `120.0` | Seconds for the whole batch; raise with `max_items` |
 | `batch.max_label_length` | `128` | Longest accepted label |
 | `batch.rate_limit.enabled` | `true` | Whether the batch prefix allowance is enforced at all |
 | `batch.rate_limit.prefixes` | `5000` | Unique uncached prefixes per window |
@@ -241,13 +241,13 @@ cannot drift apart between them. Two of its properties are worth knowing.
 `NO_PROXY` have no effect on AmIWeak's outbound calls. `requests` otherwise
 lets those silently override `session.verify` and `session.proxies` on any call
 that does not pass `verify=` explicitly, which would defeat the point of
-centralising the settings here — and would mean a machine-level variable could
+centralising the settings here, and would mean a machine-level variable could
 quietly turn verification off. Configure proxies and CA bundles through
 `config.yaml` (`proxy.*`, `http.ca_bundle`); nothing else is read.
 
 **It retries once.** `https://` requests get one retry with a 0.2 s backoff, on
 502, 503 and 504 only, GET only. So a backend that is down can cost up to twice
-`checks.<name>.timeout` before it reports `timeout` — size
+`checks.<name>.timeout` before it reports `timeout`; size
 `policy.overall_deadline` with that in mind.
 
 **Timeouts inherit.** `http.timeout` is the one every backend uses;
@@ -264,7 +264,7 @@ checks:
 ```
 
 gives weakpass longer and leaves HIBP at five seconds. Inheritance is resolved
-once, at startup, so a `CheckConfig` always carries a real number — nothing
+once, at startup, so a `CheckConfig` always carries a real number; nothing
 downstream has to know a value was inherited.
 
 ### If your network terminates TLS
@@ -309,7 +309,7 @@ close to 120 in aggregate depending on which worker a given connection lands
 on. A `/metrics` scrape has the same problem in reverse: it sees whichever
 worker answered the scrape, not the other three. Set `state.path` to a file,
 e.g. `"amiweak-state.db"`, and every worker opens the same SQLite database
-instead — a relative path resolves against the working directory the process
+instead: a relative path resolves against the working directory the process
 was started from, the same rule `denylist.path` already follows, so the two
 path settings in this file don't quietly disagree about where "here" means.
 `state.busy_timeout` (default `5.0`) bounds how long a worker will wait for
@@ -318,7 +318,7 @@ operation.
 
 What moves into the shared file: the token buckets behind `policy.rate_limit`
 and `batch.rate_limit`, and the counters `/metrics` reports. The two rate
-limiters keep separate allowances even though they now share one file — each
+limiters keep separate allowances even though they now share one file; each
 is stored under its own namespace prefix, so a client burning through the
 interactive limit hasn't touched the batch limit at all, same as today.
 
@@ -327,19 +327,19 @@ entry is a parsed range, tens to hundreds of kilobytes of Python objects, and
 shipping one of those through an out-of-process store on every lookup would
 cost more than just eating the cache miss and refetching the range. So
 `cache.max_entries` and its per-worker memory multiplier are unaffected by
-this setting — see the note under Monitoring below, still accurate as
-written.
+this setting (see the note under Monitoring below, still accurate as
+written).
 
 The shared token bucket reads `time.time()` rather than
 `time.monotonic()`, because a monotonic clock has no shared epoch across
-separate processes — a value one worker's clock produced means nothing to
+separate processes: a value one worker's clock produced means nothing to
 another worker's. The cost is that an NTP correction stepping the wall clock
 backwards can briefly grant a bit of extra allowance. Acceptable for a
 limiter whose job is stopping casual hammering, not standing up to a
 determined attacker.
 
-If the SQLite file can't be reached for a given operation — locked past
-`busy_timeout`, disk full, whatever — `ResilientStore` falls back to an
+If the SQLite file can't be reached for a given operation (locked past
+`busy_timeout`, disk full, whatever), `ResilientStore` falls back to an
 in-process `MemoryStore` for that call and counts it in `store_errors_total`,
 visible on `/metrics`. That fallback is not "no limit" or "no counters"; it's
 exactly the per-worker behaviour every deployment already has without
@@ -359,31 +359,31 @@ One thing sharing the store does not fix: `uptime_seconds` in `/healthz` and
 no way to tell "this worker started 20 seconds ago" apart from "this row is
 left over from last week's run" without a boot marker, and the process that
 would need to write one differs between gunicorn's master and `run.py`. This
-is a documented limitation, not an oversight — don't read a small
+is a documented limitation, not an oversight: don't read a small
 `uptime_seconds` on a shared-state deployment as a crash you missed.
 
 ## Organisational denylist
 
 HIBP, weakpass and zxcvbn-ts are all global signals. None of them knows
 `ACME2026!` is exactly the password an attacker targeting this organisation
-would try first — it has never been breached, no public cracking corpus is
+would try first: it has never been breached, no public cracking corpus is
 built around one government IT centre's initials, and zxcvbn scores it well
 because it has length, mixed case, a digit run and a symbol. The denylist
 closes that gap with a list only the organisation can write.
 
-**The whole feature is off unless `denylist.path` is set.** A `null` path — the
-default — skips loading, wires nothing into `CheckRunner`, and touches no cache
+**The whole feature is off unless `denylist.path` is set.** A `null` path (the
+default) skips loading, wires nothing into `CheckRunner`, and touches no cache
 file.
 
 When it's on, `denylist.path` points at a plain text file: one entry per line,
 `#` starts a comment, blank lines are ignored. Entries are words like `acme`,
-`widget`, project codenames, service-account conventions — whatever an
+`widget`, project codenames, service-account conventions, whatever an
 attacker who knows this organisation would try. An entry shorter than
 `denylist.min_token_length` (default `4`) is a startup error rather than a
 silent skip, because a two- or three-character entry would substring-match
 nearly every password.
 
-`denylist.txt.example` ships as a starting point — copy it to `denylist.txt`
+`denylist.txt.example` ships as a starting point: copy it to `denylist.txt`
 and point `denylist.path` at the copy. `.gitignore` already excludes
 `denylist.txt` and the generated `*.amwk-digests` sidecars, because entries may
 themselves be known-bad passwords and the file is a secret.
@@ -392,7 +392,7 @@ That file feeds two layers. `/api/v1/check` gets a plaintext substring gate:
 normalize the submitted password (casefold, l33t-decode, strip punctuation)
 and test each entry as a substring, so `ACME-2026!` and `Ac1e2026` both match
 `acme`. Every endpoint, including the digest-only ones, also gets a SHA-1
-`DenylistChecker` fed by rule-expanded digests of the same entries — see
+`DenylistChecker` fed by rule-expanded digests of the same entries; see
 [Endpoint behaviour](#endpoint-behaviour-and-its-asymmetry) below for how those
 two layers diverge.
 
@@ -403,8 +403,8 @@ default) that get run over every entry through
 [`hcrulepy`](https://github.com/miichoow/hcrulepy), a pure-Python
 reimplementation of hashcat's rule engine. Each expansion is hashed into the
 digest set too, so the checker matches "the org's words as an attacker would
-actually try them" — case variants, year and digit suffixes, l33t
-substitutions — not just the literal strings typed into the file.
+actually try them": case variants, year and digit suffixes, l33t
+substitutions, not just the literal strings typed into the file.
 
 No hashcat binary is present anywhere in this deployment, or in the pipeline
 that builds it. `hcrulepy`'s correctness is anchored to committed hashcat
@@ -416,13 +416,13 @@ missing dictionary or rule file.
 The shipped `rules/corporate.rule` is 22 rules and a deliberately safe subset:
 no `x`/`O` range operations, no `X ( ) = % ~ ?C`. `hcrulepy` marks those
 unconfirmed against hashcat on short words, and a corporate word list is mostly
-short words. Point `denylist.rules` at your own file if you want the rest —
+short words. Point `denylist.rules` at your own file if you want the rest;
 that is a supported choice, not a guarded one, but the expansion count (and so
 the generation time and `max_digests` headroom) climbs quickly with it.
 
 ### The persistent digest cache
 
-Rule expansion is the expensive part — a few hundred entries against a real
+Rule expansion is the expensive part: a few hundred entries against a real
 rule file can be tens of thousands to millions of candidate digests, each one
 SHA-1'd. Recomputing that on every `create_app()`, once per gunicorn worker, on
 every restart, does not scale past `rules/corporate.rule`. So the generated
@@ -430,27 +430,27 @@ digest set is cached on disk, next to the dictionary, and only regenerated
 when its inputs actually change.
 
 The cache lives in a sidecar file, `<denylist.path>.amwk-digests` by default
-(override with `denylist.cache_path`). It's keyed on a fingerprint —
+(override with `denylist.cache_path`). It's keyed on a fingerprint:
 a SHA-256 over the dictionary's exact bytes, each configured rule file's exact
 bytes, the installed `hcrulepy` version, and an internal generator-version
-constant — computed fresh on every start. If the fingerprint on disk matches,
-the cache loads and no rule engine ever runs. If it doesn't — first start, an
-edited dictionary, an edited rule file, an `hcrulepy` upgrade — generation runs
+constant, computed fresh on every start. If the fingerprint on disk matches,
+the cache loads and no rule engine ever runs. If it doesn't (first start, an
+edited dictionary, an edited rule file, an `hcrulepy` upgrade), generation runs
 once and the result is written back.
 
 So the first start after a change pays the generation cost; every start after
 that just loads a file. With several gunicorn workers starting cold together,
 generation is serialized by a `filelock` on a `.lock` sibling: one worker
 generates while the rest block, then re-check the fingerprint and take the
-fast path once the file lands. The write itself is atomic — a temp file,
-`fsync`, `os.replace()` — so no worker, sibling or otherwise, ever reads a
+fast path once the file lands. The write itself is atomic: a temp file,
+`fsync`, `os.replace()`, so no worker, sibling or otherwise, ever reads a
 half-written cache. A cache file that fails a structural check (bad magic,
 wrong format version, a body length that doesn't match its own digest count)
 is treated exactly like a fingerprint miss and regenerated; it never crashes
 the app and never silently loads a short digest set.
 
 `denylist.max_digests` (default `1000000`) is enforced while generation is
-still running, not after — the set is capped as it's being built, so an
+still running, not after: the set is capped as it's being built, so an
 oversized rule file aborts as a startup error instead of exhausting memory on
 the way to finding out.
 
@@ -471,7 +471,7 @@ a bug, and it will surprise someone the first time they compare the two
 endpoints side by side.
 
 `POST /api/v1/check/batch`'s `summary` object gains a `denylisted` key
-alongside `leaked`, `precomputed`, `safe` and `error` — worth knowing if you
+alongside `leaked`, `precomputed`, `safe` and `error`, worth knowing if you
 already parse that shape.
 
 ## REST API
@@ -515,7 +515,7 @@ A password nothing knows about:
 ```
 
 `checks` carries one entry per configured backend, always, in `config.yaml`
-order — including backends that are switched off. The examples here run the
+order, including backends that are switched off. The examples here run the
 shipped defaults, where `denylist.path` is `null`, so `denylist` reports
 `enabled: false` and a `hit` of `null` rather than being absent. A client
 should key on `name` and read `enabled`/`applicable` rather than assume a
@@ -544,7 +544,7 @@ way an unreachable HIBP or weakpass lookup degrades today.
 The status code is 200 for any completed evaluation, since a leaked password is a
 successful check rather than an HTTP error. 400 means a malformed body, or a
 misconfiguration where no enabled backend supports SHA-1 (the algorithm this
-endpoint always hashes as) — without that guard an unreachable check would
+endpoint always hashes as); without that guard an unreachable check would
 silently resolve to `safe`. 429 a rate limit, 500 an internal failure. All of
 them use the same two-key envelope, so a client only ever parses one shape.
 
@@ -616,10 +616,10 @@ endpoint that has no field to put one in can't be talked into accepting one by
 mistake.
 
 The top-level `error` describes whether the *request* was valid, not what the
-checks found — a batch full of leaked passwords is still a successful batch, so
+checks found: a batch full of leaked passwords is still a successful batch, so
 `error` stays `false` and you read `summary` and each item's `verdict` for the
 actual findings. `400` means a malformed body, or an `algorithm` no enabled
-backend supports — see the `/api/v1/check/hash` section below for why that
+backend supports; see the `/api/v1/check/hash` section below for why that
 rejection exists; the same guard now applies to `/api/v1/check` and
 `/api/v1/check/hash` too, so no digest-taking route can silently answer `safe`
 for an algorithm nothing looked at. The per-item detail lives in `results`
@@ -631,7 +631,7 @@ caller joins the response back to its own records on `label`, not position.
 Note that `too_short` is absent from `summary` and can never appear as a
 `verdict` here, unlike on `/api/v1/check`. `policy.min_length` is a check
 against plaintext length, and a digest doesn't carry a length that means
-anything — a SHA-1 hash of `"a"` and a SHA-1 hash of a forty-character password
+anything: a SHA-1 hash of `"a"` and a SHA-1 hash of a forty-character password
 are both forty hex characters. Nothing about the digest tells you the password
 was too short to bother with, so this endpoint doesn't ask.
 
@@ -668,7 +668,7 @@ curl -X POST http://localhost:8080/api/v1/check/hash \
 ```
 
 `/api/v1/check` with the hashing moved to your side of the wire. Same envelope,
-same verdicts, plus an echoed `algorithm` — the difference is that the plaintext
+same verdicts, plus an echoed `algorithm`; the difference is that the plaintext
 password never leaves the caller. Use this when you have a digest and no
 plaintext, or when you'd rather not transmit one.
 
@@ -682,7 +682,7 @@ curl -X POST http://localhost:8080/api/v1/check/hash \
 
 The digest is case-insensitive and must be exactly 40 hex characters for
 `sha1` or 32 for `ntlm`; anything else is a `400`. So is an algorithm no
-enabled backend can answer for — if you set `algorithms: [sha1]` on both
+enabled backend can answer for: if you set `algorithms: [sha1]` on both
 backends, an NTLM request is rejected rather than silently answered `safe`.
 
 Unlike `/api/v1/check/batch`, `error` here follows the **verdict**, not the
@@ -691,12 +691,12 @@ request: `true` for `leaked`, `precomputed`, and `error`, matching
 the field means.
 
 Rate limiting comes out of `policy.rate_limit`, the same bucket
-`/api/v1/check` uses, at one token per request — the two endpoints are the same
+`/api/v1/check` uses, at one token per request; the two endpoints are the same
 amount of work and share one allowance per client IP. A `400` costs nothing,
 because the body is validated before the limiter is charged.
 
 **`policy.min_length` is not enforced on this endpoint**, and `verdict` is never
-`too_short`. A digest doesn't carry the length of the password it came from —
+`too_short`. A digest doesn't carry the length of the password it came from:
 the SHA-1 of `"a"` is forty hex characters, same as the SHA-1 of a forty-character
 passphrase. If you need a minimum length, check it before you hash. This is the
 same limitation `/api/v1/check/batch` has, for the same reason.
@@ -711,7 +711,7 @@ Returns the strength settings and message strings the page uses, so no copy is
 hardcoded in the JavaScript: a `strength` object carrying `enabled`,
 `min_score` and `policy.min_length` (as `min_length`), and a `messages` object
 with one string per verdict plus `degraded` and `error`. Deliberately narrow:
-nothing about proxies, timeouts, or which backends are wired up — and not
+nothing about proxies, timeouts, or which backends are wired up, and not
 `strength.timeout`, which is server-side only.
 
 ### GET /docs
@@ -723,8 +723,8 @@ the running server directly from the browser.
 The document is OpenAPI 3.1 and lives in `openapi.yaml` at the repository root.
 It is hand-written and parsed once at startup, so a malformed document stops
 the process rather than surfacing as a 500 later. A test compares it against
-Flask's URL map in both directions, so an endpoint added without a spec entry
-— or documented without existing — fails the suite. Three routes are exempt by
+Flask's URL map in both directions, so an endpoint added without a spec entry,
+or documented without existing, fails the suite. Three routes are exempt by
 name, because they serve the documentation rather than appearing in it: `GET /`,
 `GET /docs`, and `GET /api/v1/openapi.json`. The exemption is keyed on the
 endpoint, not the path, so a future `POST /` would still need a spec entry.
@@ -745,7 +745,7 @@ count against the same rate limits as any other client. Use throwaway values.
 
 Two things the page deliberately does not do. It loads Swagger UI's plain
 bundle rather than the standalone preset, because the preset's top bar carries
-a spec-URL field — which would let a visitor repoint try-it-out at a host of
+a spec-URL field, which would let a visitor repoint try-it-out at a host of
 their choosing and send passwords there. And `persistAuthorization` is off, so
 nothing is written to browser storage; note that setting governs the Authorize
 dialog's credentials only, and never had any bearing on request bodies.
@@ -786,22 +786,22 @@ your monitoring system into an amplifier pointed at HIBP.
 
 JSON counters: `checks_total`, `verdicts_total` by verdict,
 `backend_requests_total` and `backend_errors_total` by backend, plus
-`backend_latency_seconds` per backend — `count`, `sum`, and `max`, not a
+`backend_latency_seconds` per backend: `count`, `sum`, and `max`, not a
 histogram; there is no quantile estimate to compute from that. No label
 anywhere derives from a password or a hash. The only strings that become keys
 are the fixed verdict names and the fixed backend names.
 
 Also present:
 
-- `cache_hits_total` / `cache_misses_total` — prefix cache lookups, by backend. Only backends that opt into the cache appear: the denylist sets `cacheable = False` (its lookup is an in-memory dict, and caching it would evict genuinely expensive HIBP and weakpass ranges from the LRU), so it is absent from both, and it costs nothing against `batch.rate_limit` either.
-- `batch_requests_total` — number of `POST /api/v1/check/batch` requests served.
-- `batch_items_total` — total items across every batch request, regardless of verdict.
-- `backend_algorithm_total` — successful fetches per backend, by algorithm (`sha1`/`ntlm`).
-- `store_errors_total` — state store operations that fell back to per-process state; see [Sharing state across workers](#sharing-state-across-workers) for what that means.
+- `cache_hits_total` / `cache_misses_total`: prefix cache lookups, by backend. Only backends that opt into the cache appear: the denylist sets `cacheable = False` (its lookup is an in-memory dict, and caching it would evict genuinely expensive HIBP and weakpass ranges from the LRU), so it is absent from both, and it costs nothing against `batch.rate_limit` either.
+- `batch_requests_total`: number of `POST /api/v1/check/batch` requests served.
+- `batch_items_total`: total items across every batch request, regardless of verdict.
+- `backend_algorithm_total`: successful fetches per backend, by algorithm (`sha1`/`ntlm`).
+- `store_errors_total`: state store operations that fell back to per-process state; see [Sharing state across workers](#sharing-state-across-workers) for what that means.
 
 **`checks_total` and `verdicts_total` count items, not requests.** Both the
 interactive `/api/v1/check` route and the batch route resolve a verdict per
-item, and each resolution increments these counters once — so a single
+item, and each resolution increments these counters once, so a single
 1000-item batch moves them by 1000, not by 1. If you have a dashboard built on
 `checks_total` from before batch checking existed, expect it to jump by orders
 of magnitude the first time someone runs a batch; that is the counter working
@@ -819,7 +819,7 @@ scrape sees one worker's view. Same story for the rate limiter, where the
 effective allowance is roughly `requests × workers`. It exists to stop casual
 hammering, not a determined attacker. Set `state.path` (see
 [Sharing state across workers](#sharing-state-across-workers)) to put both the
-counters and the rate-limit buckets in one SQLite file every worker shares —
+counters and the rate-limit buckets in one SQLite file every worker shares;
 then a scrape sees the whole deployment's counters, and `requests` means what
 it says regardless of worker count.
 
@@ -828,8 +828,8 @@ gunicorn workers that's four separate caches, not one shared 40-60 MB pool.
 Raise `cache.max_entries` deliberately, with the worker count in mind.
 
 **`batch.deadline` and `batch.max_items` move together.** A full, uncached batch
-needs up to `max_items × 2` prefix fetches — one per backend per distinct
-prefix — run `max_concurrency` at a time. Raising `max_items` without raising
+needs up to `max_items × 2` prefix fetches (one per backend per distinct
+prefix), run `max_concurrency` at a time. Raising `max_items` without raising
 `deadline` to match just makes full batches start timing out.
 
 **The batch rate limit is a separate bucket from `policy.rate_limit`.** It has
@@ -841,7 +841,7 @@ audit you re-run inside `cache.ttl_seconds` costs nothing.
 ### GET /metrics/prometheus
 
 The same counters as `/metrics`, rendered in Prometheus text exposition format
-instead of JSON. `/metrics` is unchanged and keeps serving JSON — this is a
+instead of JSON. `/metrics` is unchanged and keeps serving JSON; this is a
 second view of one snapshot, not a replacement, so the two can never disagree.
 
 ```yaml
@@ -864,7 +864,7 @@ not fired yet reads as empty rather than as a broken exporter.
 0 otherwise, per backend.
 
 Latency (`amiweak_backend_latency_seconds_count` / `_sum`, plus a separate
-`amiweak_backend_latency_seconds_max` gauge) is a summary without quantiles —
+`amiweak_backend_latency_seconds_max` gauge) is a summary without quantiles:
 the underlying data is only count, sum, and max, so there is no `quantile="…"`
 series and no real percentile estimate to compute one from.
 
@@ -872,7 +872,7 @@ series and no real percentile estimate to compute one from.
 building alerts on this endpoint.** With the default `state.path: null` and
 the four workers `gunicorn.conf.py` defaults to, a scrape of
 `/metrics/prometheus` sees
-whichever one worker answered it, not the deployment's total — exactly the
+whichever one worker answered it, not the deployment's total: exactly the
 same per-worker caveat that already applies to `/metrics`.
 
 ## Adding a backend
@@ -897,7 +897,7 @@ class MySourceChecker(RangeChecker):
         return digest[:5]
 
     def fetch(self, prefix: str, algorithm: Algorithm) -> RangeFetch:
-        # One network call per prefix. Return a RangeFetch either way — errors
+        # One network call per prefix. Return a RangeFetch either way: errors
         # are returned, not raised, so the caller can tell a result worth
         # caching from one that must not be.
         ...
@@ -910,7 +910,7 @@ class MySourceChecker(RangeChecker):
 `RangeChecker` supplies `check()` from those four primitives, splitting a range
 lookup into its two halves: one network fetch per *prefix*, and a pure lookup
 per *digest*. `fetch` is the one that matters most, because it is the only
-method everything else in the system attaches to — the prefix cache, metrics,
+method everything else in the system attaches to: the prefix cache, metrics,
 the batch rate limiter, and the concurrency cap on a batch all wrap calls to
 `fetch`. A backend that reaches out to the network from anywhere else (inside
 `lookup`, say, or from its own background thread) silently opts out of all of
@@ -988,7 +988,7 @@ rules/               hashcat-format rule files for denylist expansion (corporate
 
 zxcvbn-ts and Swagger UI are both committed under `static/vendor/` instead of
 loaded from a CDN. No build step, no npm at deploy time, and the
-Content-Security-Policy gets to stay `default-src 'self'` — which it could not
+Content-Security-Policy gets to stay `default-src 'self'`, which it could not
 if either came off a third-party host. A page that receives passwords should
 not be asking a stranger for its JavaScript.
 
