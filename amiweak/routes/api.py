@@ -6,6 +6,7 @@ it would be logged by every proxy and access log between here and the client.
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -20,6 +21,35 @@ from amiweak.config import BatchConfig
 logger = logging.getLogger(__name__)
 
 bp = Blueprint("api", __name__, url_prefix="/api/v1")
+
+
+def _load_json() -> Any:
+    """Parse the request body as JSON, tolerating a body mislabeled as UTF-8.
+
+    JSON is UTF-8 by spec, and Flask's `get_json` decodes it strictly as such.
+    Some clients (notably SSPR, which sends `Content-Type: application/json;
+    charset=UTF-8` but a Windows-1252 body) put accented text in fields we
+    never read -- a policy `ChangeMessage`, a `passwordRules` list. Those bytes
+    (a lone \\xe9, \\x92, ...) are invalid UTF-8, so a strict parse 400s a
+    request whose `password` is plain ASCII and perfectly usable.
+
+    So: try UTF-8 first -- a well-formed client always wins here -- then fall
+    back to cp1252, a superset of Latin-1 that also covers the smart-punctuation
+    bytes those clients emit. Returns None when the body is JSON under neither
+    decoding, so every caller keeps its existing 400 path unchanged. Content
+    type is deliberately ignored: the whole point is that we cannot trust the
+    charset a client declares.
+    """
+    raw = request.get_data()
+    if not raw:
+        return None
+    for encoding in ("utf-8", "cp1252"):
+        try:
+            return json.loads(raw.decode(encoding))
+        except (UnicodeDecodeError, ValueError):
+            continue
+    return None
+
 
 #: Which configured message answers which verdict.
 MESSAGE_FOR = {
@@ -43,7 +73,7 @@ def check() -> tuple[Response, int]:
         if not ctx.limiter.allow(client):
             return jsonify(envelope(True, "Too many checks. Try again shortly.")), 429
 
-    payload = request.get_json(silent=True)
+    payload = _load_json()
     if not isinstance(payload, dict):
         return jsonify(envelope(True, "Send a JSON object with a 'password' field.")), 400
 
@@ -142,7 +172,7 @@ def check_batch() -> tuple[Response, int]:
         return jsonify(envelope(True, "Batch checking is disabled.")), 404
 
     try:
-        algorithm, items = _parse_batch(request.get_json(silent=True), ctx.config.batch)
+        algorithm, items = _parse_batch(_load_json(), ctx.config.batch)
         _require_supported(ctx.runner, algorithm)
     except _Invalid as exc:
         return jsonify(envelope(True, str(exc))), 400
@@ -231,7 +261,7 @@ def check_hash() -> tuple[Response, int]:
     # Validation precedes the limiter, as on /check/batch: a malformed body must
     # not spend a token that a well-formed request from the same client needs.
     try:
-        algorithm, digest = _parse_hash(request.get_json(silent=True))
+        algorithm, digest = _parse_hash(_load_json())
         _require_supported(ctx.runner, algorithm)
     except _Invalid as exc:
         return jsonify(envelope(True, str(exc))), 400

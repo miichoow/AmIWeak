@@ -25,3 +25,8 @@ access_log_format = '%(h)s "%(m)s %(U)s" %(s)s %(b)s %(D)s'
 # TLS is off unless both are set — e.g. AMIWEAK_CERTFILE=cert.pem AMIWEAK_KEYFILE=key.pem
 certfile = os.environ.get("AMIWEAK_CERTFILE") or None
 keyfile = os.environ.get("AMIWEAK_KEYFILE") or None
+
+# Gunicorn's control socket defaults under $HOME, which ProtectHome=true in the
+# systemd unit makes inaccessible; setting control_socket = None crashes instead
+# of disabling it, so use the actual disable flag.
+control_socket_disable = True

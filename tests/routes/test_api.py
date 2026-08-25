@@ -176,6 +176,35 @@ def test_json_array_body_is_400():
     assert client.post("/api/v1/check", json=["a"]).status_code == 400
 
 
+# SSPR (and other legacy clients) send Content-Type: application/json;
+# charset=UTF-8 but encode accented text as Windows-1252, so a lone \xe9 / \xe8
+# / \x92 makes the body invalid UTF-8. A strict UTF-8 JSON parse 400s the whole
+# request even when the only non-ASCII bytes sit in fields we never read.
+CP1252_CHECK_BODY = (
+    b'{"password":"CACAHUETE6840.fh",'
+    b'"policy":{"ChangeMessage":"sera synchronis\xe9 avec les syst\xe8mes, '
+    b'si vous disposez d\x92appareils mobiles"}}'
+)
+
+
+def test_check_accepts_a_cp1252_encoded_body():
+    client = client_for(evaluation(Verdict.SAFE))
+    response = client.post(
+        "/api/v1/check", data=CP1252_CHECK_BODY, content_type="application/json; charset=UTF-8"
+    )
+    assert response.status_code == 200
+    assert response.get_json()["verdict"] == "safe"
+
+
+def test_check_cp1252_body_still_reads_the_ascii_password():
+    runner = StubRunner(evaluation(Verdict.SAFE))
+    app = create_app(config=load_config(None, env={}), runner=runner)
+    app.test_client().post(
+        "/api/v1/check", data=CP1252_CHECK_BODY, content_type="application/json; charset=UTF-8"
+    )
+    assert runner.calls == ["CACAHUETE6840.fh"]
+
+
 def test_get_is_not_allowed():
     assert client_for(evaluation(Verdict.SAFE)).get("/api/v1/check").status_code == 405
 
@@ -398,6 +427,22 @@ def test_batch_rejects_a_body_that_is_not_an_object():
     assert batch_app().test_client().post("/api/v1/check/batch", json=[]).status_code == 400
 
 
+def test_batch_accepts_a_cp1252_encoded_body():
+    # The accent sits in a label -- a field the endpoint DOES read -- so this
+    # also pins that the fallback decode yields the right string, not mojibake.
+    runner = FakeBatchRunner()
+    body = (
+        b'{"algorithm":"ntlm","items":[{"label":"caf\xe9-user","hash":"' + NTLM_A.encode() + b'"}]}'
+    )
+    response = (
+        batch_app(runner)
+        .test_client()
+        .post("/api/v1/check/batch", data=body, content_type="application/json; charset=UTF-8")
+    )
+    assert response.status_code == 200
+    assert [entry.label for entry in runner.seen[0]] == ["café-user"]
+
+
 def test_batch_is_rate_limited_by_prefix_cost():
     # The fake charges a fixed cost of 1 per request, deliberately different
     # from len(items) == 2 in batch_body(). With a budget of 2, the handler
@@ -595,6 +640,16 @@ def test_hash_rejects_a_body_that_is_not_an_object():
 
 def test_hash_get_is_not_allowed():
     assert hash_client().get("/api/v1/check/hash").status_code == 405
+
+
+def test_hash_accepts_a_cp1252_encoded_body():
+    runner = FakeHashRunner()
+    body = b'{"hash":"' + SHA1_DIGEST.encode() + b'","note":"caf\xe9"}'
+    response = hash_client(runner).post(
+        "/api/v1/check/hash", data=body, content_type="application/json; charset=UTF-8"
+    )
+    assert response.status_code == 200
+    assert runner.seen == (SHA1_DIGEST, Algorithm.SHA1)
 
 
 def test_hash_rejection_does_not_echo_the_submitted_digest():
