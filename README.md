@@ -546,9 +546,9 @@ curl -X POST http://localhost:8080/api/v1/check \
   "verdict": "leaked",
   "degraded": false,
   "checks": [
-    {"name": "hibp", "enabled": true, "applicable": true, "hit": true, "count": 52372427, "error": null},
-    {"name": "weakpass", "enabled": true, "applicable": true, "hit": true, "count": null, "error": null},
-    {"name": "denylist", "enabled": false, "applicable": true, "hit": null, "count": null, "error": null}
+    {"name": "hibp", "enabled": true, "applicable": true, "skipped": false, "hit": true, "count": 52372427, "error": null},
+    {"name": "weakpass", "enabled": true, "applicable": true, "skipped": false, "hit": true, "count": null, "error": null},
+    {"name": "denylist", "enabled": false, "applicable": true, "skipped": false, "hit": null, "count": null, "error": null}
   ]
 }
 ```
@@ -562,21 +562,52 @@ A password nothing knows about:
   "verdict": "safe",
   "degraded": false,
   "checks": [
-    {"name": "hibp", "enabled": true, "applicable": true, "hit": false, "count": null, "error": null},
-    {"name": "weakpass", "enabled": true, "applicable": true, "hit": false, "count": null, "error": null},
-    {"name": "denylist", "enabled": false, "applicable": true, "hit": null, "count": null, "error": null}
+    {"name": "hibp", "enabled": true, "applicable": true, "skipped": false, "hit": false, "count": null, "error": null},
+    {"name": "weakpass", "enabled": true, "applicable": true, "skipped": false, "hit": false, "count": null, "error": null},
+    {"name": "denylist", "enabled": false, "applicable": true, "skipped": false, "hit": null, "count": null, "error": null}
   ]
 }
 ```
+
+A password caught by the organisational denylist's plaintext gate (see
+[Organisational denylist](#organisational-denylist)) never reaches hibp or
+weakpass -- there is no point spending a network round trip, or putting the
+hash on the wire, on a password already rejected. The denylist digest checker
+is different: it is in-memory and free, so it still runs for real instead of
+being skipped alongside them:
+
+```json
+{
+  "error": true,
+  "errorMessage": "This password contains something specific to your organisation.",
+  "verdict": "denylisted",
+  "degraded": false,
+  "checks": [
+    {"name": "hibp", "enabled": true, "applicable": true, "skipped": true, "hit": null, "count": null, "error": null},
+    {"name": "weakpass", "enabled": true, "applicable": true, "skipped": true, "hit": null, "count": null, "error": null},
+    {"name": "denylist", "enabled": true, "applicable": true, "skipped": false, "hit": true, "count": null, "error": null}
+  ]
+}
+```
+
+`skipped` can also be `true` on every entry at once, for a verdict decided
+even earlier -- `too_short` or `weak` -- where nothing, including the denylist
+digest checker, ran.
 
 `checks` carries one entry per configured backend, always, in `config.yaml`
 order, including backends that are switched off. The examples here run the
 shipped defaults, where `denylist.path` is `null`, so `denylist` reports
 `enabled: false` and a `hit` of `null` rather than being absent. A client
-should key on `name` and read `enabled`/`applicable` rather than assume a
-length or a position. On a deployment that *does* configure the denylist, that
-entry reads `enabled: true`, and `applicable: false` on an NTLM request, since
-`checks.denylist.algorithms` is `[sha1]` by default.
+should key on `name` and read `enabled`/`applicable`/`skipped` rather than
+assume a length or a position. On a deployment that *does* configure the
+denylist, that entry reads `enabled: true`, and `applicable: false` on an NTLM
+request, since `checks.denylist.algorithms` is `[sha1]` by default.
+
+`skipped` is `true` when a check never ran because an earlier gate (length,
+strength, the plaintext denylist match) already decided the verdict --
+distinct from `error`, which means a check was attempted and failed. A client
+rendering a per-check breakdown should treat `skipped` as "not needed", not as
+"unavailable": nothing is degraded, there was simply no reason to run it.
 
 `error` is true whenever the password failed a check. `errorMessage` is the
 configured message for the resolved verdict. `verdict` is one of `safe`,
@@ -643,9 +674,9 @@ curl -X POST http://localhost:8080/api/v1/check/batch \
       "verdict": "leaked",
       "degraded": false,
       "checks": [
-        {"name": "hibp", "enabled": true, "applicable": true, "hit": true, "count": 9545824, "error": null},
-        {"name": "weakpass", "enabled": true, "applicable": true, "hit": true, "count": null, "error": null},
-        {"name": "denylist", "enabled": false, "applicable": true, "hit": null, "count": null, "error": null}
+        {"name": "hibp", "enabled": true, "applicable": true, "skipped": false, "hit": true, "count": 9545824, "error": null},
+        {"name": "weakpass", "enabled": true, "applicable": true, "skipped": false, "hit": true, "count": null, "error": null},
+        {"name": "denylist", "enabled": false, "applicable": true, "skipped": false, "hit": null, "count": null, "error": null}
       ]
     },
     {
@@ -653,9 +684,9 @@ curl -X POST http://localhost:8080/api/v1/check/batch \
       "verdict": "safe",
       "degraded": false,
       "checks": [
-        {"name": "hibp", "enabled": true, "applicable": true, "hit": false, "count": null, "error": null},
-        {"name": "weakpass", "enabled": true, "applicable": true, "hit": false, "count": null, "error": null},
-        {"name": "denylist", "enabled": false, "applicable": true, "hit": null, "count": null, "error": null}
+        {"name": "hibp", "enabled": true, "applicable": true, "skipped": false, "hit": false, "count": null, "error": null},
+        {"name": "weakpass", "enabled": true, "applicable": true, "skipped": false, "hit": false, "count": null, "error": null},
+        {"name": "denylist", "enabled": false, "applicable": true, "skipped": false, "hit": null, "count": null, "error": null}
       ]
     }
   ]
@@ -715,9 +746,9 @@ curl -X POST http://localhost:8080/api/v1/check/hash \
   "algorithm": "sha1",
   "degraded": false,
   "checks": [
-    {"name": "hibp", "enabled": true, "applicable": true, "hit": true, "count": 52372427, "error": null},
-    {"name": "weakpass", "enabled": true, "applicable": true, "hit": true, "count": null, "error": null},
-    {"name": "denylist", "enabled": false, "applicable": true, "hit": null, "count": null, "error": null}
+    {"name": "hibp", "enabled": true, "applicable": true, "skipped": false, "hit": true, "count": 52372427, "error": null},
+    {"name": "weakpass", "enabled": true, "applicable": true, "skipped": false, "hit": true, "count": null, "error": null},
+    {"name": "denylist", "enabled": false, "applicable": true, "skipped": false, "hit": null, "count": null, "error": null}
   ]
 }
 ```

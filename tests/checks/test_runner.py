@@ -623,6 +623,30 @@ def test_plaintext_denylist_gate_short_circuits_before_network(config):
     assert all(result.skipped for result in evaluation.results)
 
 
+def test_plaintext_denylist_gate_still_runs_the_free_digest_checker(config):
+    from amiweak.checks.denylist import DenylistChecker
+    from amiweak.denylist import Denylist
+
+    class Boom(FakeChecker):  # hibp must still be skipped: that one costs a real fetch
+        def fetch(self, prefix, algorithm):
+            raise AssertionError("network must not run")
+
+    password = "ACME2026!"
+    digest = sha1_hex(password)
+    buckets = {digest[:5]: {digest[5:]: None}}
+    dl = Denylist(tokens=("acme",), buckets=buckets)
+    denylist_checker = DenylistChecker(buckets, config.checks["denylist"])
+
+    runner = CheckRunner([Boom("hibp"), denylist_checker], config, denylist=dl)
+    evaluation = runner.evaluate(password)
+
+    assert evaluation.verdict is Verdict.DENYLISTED
+    by_name = {result.name: result for result in evaluation.results}
+    assert by_name["denylist"].hit is True
+    assert by_name["denylist"].skipped is False
+    assert by_name["hibp"].skipped is True
+
+
 def test_gate_is_off_when_match_plaintext_false(tmp_path):
     from amiweak.denylist import Denylist
 

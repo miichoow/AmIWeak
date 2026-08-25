@@ -134,10 +134,17 @@ class CheckRunner:
             and self._config.denylist.match_plaintext
             and self._denylist.matches(password)
         ):
-            # Same reasoning as the gates above: a hard ban spends no network
-            # call and keeps the hash off the wire. Mirrors the page, which
-            # holds the plaintext and can match mutations the digest set cannot.
-            return self._finish(Verdict.DENYLISTED, strength_degraded, self._placeholder_results())
+            # hibp/weakpass are skipped for the same reason as the gates above:
+            # no point spending a network call on a password already rejected,
+            # and it keeps the hash off the wire. The denylist digest checker is
+            # different -- it is local, free, and cannot fail (see
+            # DenylistChecker.fetch) -- so it still runs for real instead of
+            # reporting a placeholder. It can come back a miss even though the
+            # plaintext gate hit: the plaintext match (with l33t-decoding) can
+            # catch mutations the precomputed digest set does not.
+            return self._finish(
+                Verdict.DENYLISTED, strength_degraded, self._denylist_hit_results(password)
+            )
 
         evaluation = self.evaluate_digest(sha1_hex(password), Algorithm.SHA1)
         if strength_degraded and not evaluation.degraded:
@@ -342,6 +349,20 @@ class CheckRunner:
         """Results for a verdict decided by an earlier gate: every check was
         skipped, not attempted-and-unreachable."""
         return self._ordered({}, skipped=True)
+
+    def _denylist_hit_results(self, password: str) -> list[CheckResult]:
+        """Results for a verdict decided by the plaintext denylist gate.
+
+        hibp/weakpass are skipped -- reporting them would cost a real network
+        call for a password already rejected. The denylist digest checker
+        costs nothing to run, so it answers for real rather than reporting a
+        placeholder alongside them.
+        """
+        completed: dict[str, CheckResult] = {}
+        denylist_checker = next((c for c in self._checkers if c.name == "denylist"), None)
+        if denylist_checker is not None and denylist_checker.supports(Algorithm.SHA1):
+            completed["denylist"] = denylist_checker.check(sha1_hex(password), Algorithm.SHA1)
+        return self._ordered(completed, skipped=True)
 
     def _ordered(
         self, completed: dict[str, CheckResult], skipped: bool = False
