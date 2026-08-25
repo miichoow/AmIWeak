@@ -11,6 +11,8 @@ from 35 to 27, making NTLM digests exactly 32 hex characters.
 
 from __future__ import annotations
 
+import logging
+
 import requests
 
 from amiweak.algorithms import Algorithm
@@ -19,6 +21,8 @@ from amiweak.config import CheckConfig
 
 RANGE_URL = "https://api.pwnedpasswords.com/range/{prefix}"
 PREFIX_LENGTH = 5
+
+logger = logging.getLogger(__name__)
 
 
 def parse_hibp_range(body: str) -> dict[str, int]:
@@ -65,6 +69,10 @@ class HibpChecker(RangeChecker):
         return digest.upper()[:PREFIX_LENGTH]
 
     def fetch(self, prefix: str, algorithm: Algorithm) -> RangeFetch:
+        # Cache hits never get here, so this line marks a real outbound
+        # call to HIBP. The prefix is deliberately left out: it is
+        # part of the hash.
+        logger.info("%s: fetching range for %s", self.name, algorithm)
         try:
             response = self._session.get(
                 RANGE_URL.format(prefix=prefix),

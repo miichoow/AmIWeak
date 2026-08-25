@@ -1,3 +1,5 @@
+import logging
+
 import requests
 import responses
 
@@ -102,3 +104,14 @@ def test_ntlm_type_is_requested_and_parsed():
     assert responses.calls[0].request.params["type"] == "ntlm"
     assert responses.calls[0].request.params["filter"] == "hash"
     assert result.hit is True
+
+
+@responses.activate
+def test_fetch_logs_the_outbound_call_at_info(caplog):
+    responses.get(URL, body=f"{PASSWORD_HASH}\n")
+    with caplog.at_level(logging.INFO, logger="amiweak.checks.weakpass"):
+        checker().check(PASSWORD_HASH, Algorithm.SHA1)
+    messages = [record.getMessage() for record in caplog.records]
+    assert messages == ["weakpass: fetching range for sha1"]
+    # The prefix is part of the hash and must never reach a log line.
+    assert PREFIX not in messages[0]

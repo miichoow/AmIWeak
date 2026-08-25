@@ -1,3 +1,5 @@
+import logging
+
 import requests
 import responses
 
@@ -144,3 +146,14 @@ def test_result_serialises_to_api_shape():
         "count": 7,
         "error": None,
     }
+
+
+@responses.activate
+def test_fetch_logs_the_outbound_call_at_info(caplog):
+    responses.get(URL, body=f"{SUFFIX}:42\n")
+    with caplog.at_level(logging.INFO, logger="amiweak.checks.hibp"):
+        checker().check(PASSWORD_HASH, Algorithm.SHA1)
+    messages = [record.getMessage() for record in caplog.records]
+    assert messages == ["hibp: fetching range for sha1"]
+    # The prefix is part of the hash and must never reach a log line.
+    assert PREFIX not in messages[0]

@@ -8,6 +8,8 @@ appeared in a breach dump.
 
 from __future__ import annotations
 
+import logging
+
 import requests
 
 from amiweak.algorithms import Algorithm
@@ -17,6 +19,8 @@ from amiweak.config import CheckConfig
 RANGE_URL = "https://weakpass.com/api/v1/range/{prefix}.txt"
 PREFIX_LENGTH = 6
 _HEX = set("0123456789abcdef")
+
+logger = logging.getLogger(__name__)
 
 
 def parse_weakpass_range(body: str) -> RangeData:
@@ -56,6 +60,10 @@ class WeakpassChecker(RangeChecker):
         return digest.lower()[:PREFIX_LENGTH]
 
     def fetch(self, prefix: str, algorithm: Algorithm) -> RangeFetch:
+        # Cache hits never get here, so this line marks a real outbound
+        # call to weakpass. The prefix is deliberately left out: it is
+        # part of the hash.
+        logger.info("%s: fetching range for %s", self.name, algorithm)
         try:
             response = self._session.get(
                 RANGE_URL.format(prefix=prefix),
