@@ -171,6 +171,16 @@ def test_non_json_body_is_400():
     assert response.get_json()["error"] is True
 
 
+def test_empty_body_is_400():
+    # Distinct from test_non_json_body_is_400: an empty body takes the
+    # early-return path in _load_json (nothing to even attempt decoding),
+    # not the decode-failure path.
+    client = client_for(evaluation(Verdict.SAFE))
+    response = client.post("/api/v1/check", data=b"", content_type="application/json")
+    assert response.status_code == 400
+    assert response.get_json()["error"] is True
+
+
 def test_json_array_body_is_400():
     client = client_for(evaluation(Verdict.SAFE))
     assert client.post("/api/v1/check", json=["a"]).status_code == 400
