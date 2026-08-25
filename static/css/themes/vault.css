@@ -8,14 +8,14 @@
   font-style: normal;
   font-weight: 400 700;
   font-display: swap;
-  src: url(/static/vendor/fonts/wlpwgwvFAVdoq2_v-6QU.woff2) format('woff2');
+  src: url(../../vendor/fonts/wlpwgwvFAVdoq2_v-6QU.woff2) format('woff2');
 }
 @font-face {
   font-family: 'Source Sans 3';
   font-style: normal;
   font-weight: 400 600;
   font-display: swap;
-  src: url(/static/vendor/fonts/nwpStKy2OAdR1K-IwhWudF-R3w8aZQ.woff2) format('woff2');
+  src: url(../../vendor/fonts/nwpStKy2OAdR1K-IwhWudF-R3w8aZQ.woff2) format('woff2');
 }
 
 

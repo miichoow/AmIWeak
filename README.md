@@ -136,12 +136,64 @@ HTTPS instead:
 python run.py --cert cert.pem --key key.pem --port 8443
 ```
 
+Gunicorn takes TLS the same way, if you'd rather not put a proxy in front of
+it. Set `AMIWEAK_CERTFILE` and `AMIWEAK_KEYFILE` and `gunicorn.conf.py` picks
+them up:
+
+```bash
+AMIWEAK_CERTFILE=cert.pem AMIWEAK_KEYFILE=key.pem gunicorn -c gunicorn.conf.py wsgi:app
+```
+
+Leave both unset and it's plain HTTP, same as before this option existed.
+
 Config is found in this order: `--config`, then `$AMIWEAK_CONFIG`, then
 `./config.yaml`. A missing file is not an error; you get the built-in defaults.
 
 The OpenAPI document is found the same way: `$AMIWEAK_OPENAPI`, then
 `./openapi.yaml`. Set it for a deployment that does not run from the
 repository root. It is only consulted when `docs.enabled` is true.
+
+### Behind a reverse proxy, under a path
+
+AmIWeak can sit behind nginx at any path, not just the domain root. An nginx
+config that puts it at `https://host/amiweak/` in front of gunicorn on
+`127.0.0.1:8081`:
+
+```nginx
+location /amiweak/ {
+    proxy_pass http://127.0.0.1:8081/;   # trailing slash strips /amiweak/ before forwarding
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Prefix /amiweak;
+}
+```
+
+Gunicorn doesn't need to know it's behind a prefix at all; it keeps binding
+to `127.0.0.1:8081` exactly as it would at the domain root.
+
+`X-Forwarded-Prefix` is the header doing the work. `app.py` wraps the WSGI
+app in Werkzeug's `ProxyFix`, which reads it and sets `SCRIPT_NAME` on the
+request. Every template link goes through `url_for()`, so it already picks
+up that prefix. The two plain JS files, `static/js/app.js` and
+`static/js/docs.js`, are the exception: Jinja never touches them, so their
+`fetch()` calls are written as relative paths (`api/v1/check`, not
+`/api/v1/check`) and resolve against a `<base href="{{ request.script_root
+}}/">` tag that every template now sets.
+
+Two things had to change for that `<base>` tag to actually take effect.
+The Content-Security-Policy used to ship `base-uri 'none'`, which blocks a
+`<base>` element outright; it's `base-uri 'self'` now, still confined to
+the app's own origin. And `openapi.yaml`'s `servers` entry, hardcoded to
+`/`, gets overridden per request in `docs.py` to `request.script_root`, so
+`/docs`' "try it out" button targets the actual prefix instead of the
+domain root.
+
+Fonts in the theme stylesheets are the one spot that couldn't ride along
+with any of this: a `url()` inside CSS resolves against the stylesheet's
+own location, not the page's `<base>`. Those are plain relative paths now
+(`../../vendor/fonts/...`) rather than absolute ones.
 
 ## Configuration
 

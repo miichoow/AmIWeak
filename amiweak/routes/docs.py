@@ -11,7 +11,7 @@ the same precedent for `batch.enabled`.
 
 from __future__ import annotations
 
-from flask import Blueprint, abort, current_app, jsonify, render_template
+from flask import Blueprint, abort, current_app, jsonify, render_template, request
 from flask.wrappers import Response
 
 from amiweak.app import context
@@ -26,9 +26,17 @@ def _require_enabled() -> None:
 
 @bp.get("/api/v1/openapi.json")
 def specification() -> Response:
-    """The OpenAPI document, parsed at startup and served as JSON."""
+    """The OpenAPI document, parsed at startup and served as JSON.
+
+    `servers[0].url` is overridden per-request to `request.script_root`
+    (empty at domain root, e.g. "/amiweak" behind a proxy mounting us under a
+    path) so Swagger UI's "try it out" targets the right prefix instead of
+    the hardcoded "/" baked into openapi.yaml.
+    """
     _require_enabled()
-    return jsonify(context(current_app).openapi)
+    spec = dict(context(current_app).openapi)
+    spec["servers"] = [{"url": request.script_root or "/", "description": "This server."}]
+    return jsonify(spec)
 
 
 @bp.get("/docs")

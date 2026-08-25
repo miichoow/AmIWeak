@@ -146,7 +146,8 @@ def test_the_console_warns_before_anything_is_typed_into_it():
 
 def test_the_console_script_points_at_this_origin_only():
     js = Path("static/js/docs.js").read_text(encoding="utf-8")
-    assert "'/api/v1/openapi.json'" in js
+    # Relative to <base>, not absolute -- see the comment in docs.js.
+    assert "'api/v1/openapi.json'" in js
     # No absolute URL: try-it-out must stay on the origin that served the page.
     assert "http://" not in js
     assert "https://" not in js

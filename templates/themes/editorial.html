@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
   <title>AmIWeak — is your password any good?</title>
-  <link rel="stylesheet" href="/static/css/themes/editorial.css">
-  <link rel="icon" type="image/png" sizes="1024x1024" href="/static/favicons/editorial-light.png" media="(prefers-color-scheme: light)">
-  <link rel="icon" type="image/png" sizes="1024x1024" href="/static/favicons/editorial-dark.png" media="(prefers-color-scheme: dark)">
+  <base href="{{ request.script_root }}/">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/themes/editorial.css') }}">
+  <link rel="icon" type="image/png" sizes="1024x1024" href="{{ url_for('static', filename='favicons/editorial-light.png') }}" media="(prefers-color-scheme: light)">
+  <link rel="icon" type="image/png" sizes="1024x1024" href="{{ url_for('static', filename='favicons/editorial-dark.png') }}" media="(prefers-color-scheme: dark)">
 </head>
 <body>
   <main class="shell">
@@ -26,7 +27,7 @@
     </section>
 
     <section class="console">
-      <form id="check-form" method="post" action="/api/v1/check" autocomplete="off" novalidate>
+      <form id="check-form" method="post" action="{{ url_for('api.check') }}" autocomplete="off" novalidate>
         <div class="field">
           <label for="password">Your password</label>
           <div class="input-wrap">
@@ -77,7 +78,7 @@
   </main>
 
   <footer class="footnote">
-    <p>Have I Been Pwned · weakpass · <a href="/docs">API documentation</a></p>
+    <p>Have I Been Pwned · weakpass · <a href="{{ url_for('docs.console') }}">API documentation</a></p>
   </footer>
 
   <script src="/static/vendor/zxcvbn-ts-core.js" defer></script>

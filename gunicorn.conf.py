@@ -21,3 +21,7 @@ graceful_timeout = 30
 accesslog = "-"
 errorlog = "-"
 access_log_format = '%(h)s "%(m)s %(U)s" %(s)s %(b)s %(D)s'
+
+# TLS is off unless both are set — e.g. AMIWEAK_CERTFILE=cert.pem AMIWEAK_KEYFILE=key.pem
+certfile = os.environ.get("AMIWEAK_CERTFILE") or None
+keyfile = os.environ.get("AMIWEAK_KEYFILE") or None

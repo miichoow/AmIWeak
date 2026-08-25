@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from urllib.parse import urljoin
 
 import pytest
 
@@ -81,8 +82,10 @@ def test_theme_fonts_are_vendored(theme):
     href = re.search(r'<link rel="stylesheet" href="([^"]+)"', page(theme)).group(1)
     css = Path(href.lstrip("/")).read_text(encoding="utf-8")
     for url in re.findall(r"src:\s*url\(([^)]+)\)", css):
-        assert url.startswith("/static/"), f"{theme}: remote font {url}"
-        assert app.test_client().get(url).status_code == 200, url
+        # CSS url() is relative to the stylesheet itself, not the page's <base>.
+        resolved = urljoin(href, url)
+        assert resolved.startswith("/static/vendor/fonts/"), f"{theme}: remote font {url}"
+        assert app.test_client().get(resolved).status_code == 200, resolved
 
 
 def test_vendored_zxcvbn_files_exist_and_are_not_stubs():
@@ -128,7 +131,8 @@ def test_client_script_sends_the_password_only_by_post():
 
 def test_client_script_reads_copy_from_the_server():
     js = Path("static/js/app.js").read_text(encoding="utf-8")
-    assert "/api/v1/config" in js
+    # Relative to <base>, not an absolute path -- see the comment in app.js.
+    assert "api/v1/config" in js
 
 
 def test_stylesheet_respects_reduced_motion():

@@ -52,7 +52,7 @@
 
   var zxcvbnReady = configureZxcvbn();
 
-  fetch('/api/v1/config', { headers: { Accept: 'application/json' } })
+  fetch('api/v1/config', { headers: { Accept: 'application/json' } })
     .then(function (response) { return response.ok ? response.json() : null; })
     .then(function (body) {
       if (body) {
@@ -202,7 +202,7 @@
 
     busy(true);
 
-    fetch('/api/v1/check', {
+    fetch('api/v1/check', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ password: value })

@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
   <title>AmIWeak — is your password any good?</title>
-  <link rel="stylesheet" href="/static/css/app.css">
-  <link rel="icon" type="image/png" sizes="1024x1024" href="/static/favicons/original-light.png" media="(prefers-color-scheme: light)">
-  <link rel="icon" type="image/png" sizes="1024x1024" href="/static/favicons/original-dark.png" media="(prefers-color-scheme: dark)">
+  <base href="{{ request.script_root }}/">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <link rel="icon" type="image/png" sizes="1024x1024" href="{{ url_for('static', filename='favicons/original-light.png') }}" media="(prefers-color-scheme: light)">
+  <link rel="icon" type="image/png" sizes="1024x1024" href="{{ url_for('static', filename='favicons/original-dark.png') }}" media="(prefers-color-scheme: dark)">
 </head>
 <body>
   <div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -18,7 +19,7 @@
       <p class="tagline">Type a password. We'll tell you if the internet already knows it.</p>
     </header>
 
-    <form class="card" id="check-form" method="post" action="/api/v1/check" autocomplete="off" novalidate>
+    <form class="card" id="check-form" method="post" action="{{ url_for('api.check') }}" autocomplete="off" novalidate>
       <div class="field">
         <label for="password">Password</label>
         <div class="input-wrap">
@@ -73,9 +74,9 @@
     </footer>
   </main>
 
-  <script src="/static/vendor/zxcvbn-ts-core.js" defer></script>
-  <script src="/static/vendor/zxcvbn-ts-language-common.js" defer></script>
-  <script src="/static/vendor/zxcvbn-ts-language-en.js" defer></script>
-  <script src="/static/js/app.js" defer></script>
+  <script src="{{ url_for('static', filename='vendor/zxcvbn-ts-core.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='vendor/zxcvbn-ts-language-common.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='vendor/zxcvbn-ts-language-en.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 </body>
 </html>

@@ -9,8 +9,8 @@
 // an arbitrary host.
 window.addEventListener('DOMContentLoaded', function () {
   SwaggerUIBundle({
-    // Relative, so requests go to whatever origin served this page.
-    url: '/api/v1/openapi.json',
+    // Relative to <base>, so requests go to whatever origin/prefix served this page.
+    url: 'api/v1/openapi.json',
     dom_id: '#swagger-ui',
     presets: [SwaggerUIBundle.presets.apis],
     layout: 'BaseLayout',

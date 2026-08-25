@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from flask import Flask, Response
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from amiweak.algorithms import Algorithm
 from amiweak.cache import PrefixCache
@@ -36,7 +37,11 @@ DEFAULT_CONFIG_PATH = "config.yaml"
 mimetypes.add_type("font/woff2", ".woff2")
 
 CONTENT_SECURITY_POLICY = (
-    "default-src 'self'; base-uri 'none'; form-action 'none'; "
+    # base-uri 'self': the page sets <base href="{{ request.script_root }}/">
+    # so relative asset/API paths resolve correctly when mounted behind a
+    # reverse proxy under a path prefix (e.g. /amiweak/). 'self' still
+    # confines it to this origin, same as an absolute path would be.
+    "default-src 'self'; base-uri 'self'; form-action 'none'; "
     "object-src 'none'; frame-ancestors 'none'"
 )
 
@@ -149,6 +154,14 @@ def create_app(
     # an interactive Python console; it must never sit behind a form that
     # receives passwords, whatever FLASK_DEBUG happens to say.
     app.debug = False
+
+    # Trust X-Forwarded-* from the reverse proxy in front of us (e.g. nginx
+    # proxying /amiweak/ -> this app). x_prefix picks up X-Forwarded-Prefix so
+    # url_for() and request.script_root include the mount path; x_proto/x_host
+    # so generated URLs use the proxy's scheme/host, not gunicorn's.
+    app.wsgi_app = ProxyFix(  # type: ignore[method-assign]
+        app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1
+    )
 
     app.extensions["amiweak"] = AppContext(
         config=config,

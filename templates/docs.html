@@ -5,15 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
   <title>AmIWeak API — try it out</title>
-  <link rel="stylesheet" href="/static/vendor/swagger-ui/swagger-ui.css">
-  <link rel="stylesheet" href="/static/css/docs.css">
-  <link rel="icon" type="image/png" sizes="1024x1024" href="/static/favicons/original-light.png" media="(prefers-color-scheme: light)">
-  <link rel="icon" type="image/png" sizes="1024x1024" href="/static/favicons/original-dark.png" media="(prefers-color-scheme: dark)">
+  <base href="{{ request.script_root }}/">
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/swagger-ui/swagger-ui.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/docs.css') }}">
+  <link rel="icon" type="image/png" sizes="1024x1024" href="{{ url_for('static', filename='favicons/original-light.png') }}" media="(prefers-color-scheme: light)">
+  <link rel="icon" type="image/png" sizes="1024x1024" href="{{ url_for('static', filename='favicons/original-dark.png') }}" media="(prefers-color-scheme: dark)">
 </head>
 <body>
   <header class="docs-masthead">
     <h1>Am<span class="accent">I</span>Weak API</h1>
-    <p><a href="/">Back to the password checker</a></p>
+    <p><a href="{{ url_for('web.index') }}">Back to the password checker</a></p>
   </header>
 
   <p class="docs-warning" role="note">
@@ -24,7 +25,7 @@
 
   <div id="swagger-ui"></div>
 
-  <script src="/static/vendor/swagger-ui/swagger-ui-bundle.js"></script>
-  <script src="/static/js/docs.js"></script>
+  <script src="{{ url_for('static', filename='vendor/swagger-ui/swagger-ui-bundle.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/docs.js') }}"></script>
 </body>
 </html>
