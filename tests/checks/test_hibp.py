@@ -139,6 +139,7 @@ def test_result_serialises_to_api_shape():
         "name": "hibp",
         "enabled": True,
         "applicable": True,
+        "skipped": False,
         "hit": True,
         "count": 7,
         "error": None,

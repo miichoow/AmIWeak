@@ -105,7 +105,15 @@ def test_messages_are_configurable(tmp_path):
 def test_response_includes_per_check_breakdown():
     body = post(client_for(evaluation(Verdict.SAFE)), {"password": "correcthorse"}).get_json()
     assert [c["name"] for c in body["checks"]] == ["hibp", "weakpass"]
-    assert set(body["checks"][0]) == {"name", "enabled", "applicable", "hit", "count", "error"}
+    assert set(body["checks"][0]) == {
+        "name",
+        "enabled",
+        "applicable",
+        "skipped",
+        "hit",
+        "count",
+        "error",
+    }
 
 
 def test_degraded_flag_is_exposed():
@@ -538,7 +546,15 @@ def test_hash_normalises_case_before_lookup():
 def test_hash_includes_the_per_check_breakdown():
     body = post_hash(hash_client(), {"hash": SHA1_DIGEST}).get_json()
     assert [c["name"] for c in body["checks"]] == ["hibp", "weakpass"]
-    assert set(body["checks"][0]) == {"name", "enabled", "applicable", "hit", "count", "error"}
+    assert set(body["checks"][0]) == {
+        "name",
+        "enabled",
+        "applicable",
+        "skipped",
+        "hit",
+        "count",
+        "error",
+    }
 
 
 def test_hash_exposes_degraded_and_its_message():

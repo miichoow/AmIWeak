@@ -49,6 +49,11 @@ class CheckResult:
 
     `applicable` is False when the backend cannot answer for the requested
     algorithm at all. That is not an error and must not mark a result degraded.
+
+    `skipped` is True when the check never ran because an earlier gate (length,
+    strength, plaintext denylist) already decided the verdict. Distinct from
+    `error`: nothing failed here, there was simply no reason to spend the
+    network call.
     """
 
     name: str
@@ -57,12 +62,14 @@ class CheckResult:
     count: int | None
     error: str | None
     applicable: bool = True
+    skipped: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "enabled": self.enabled,
             "applicable": self.applicable,
+            "skipped": self.skipped,
             "hit": self.hit,
             "count": self.count,
             "error": self.error,

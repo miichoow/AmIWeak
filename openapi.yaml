@@ -349,7 +349,7 @@ components:
     CheckResult:
       type: object
       description: The outcome of one backend lookup.
-      required: [name, enabled, applicable, hit, count, error]
+      required: [name, enabled, applicable, skipped, hit, count, error]
       properties:
         name:
           type: string
@@ -361,6 +361,13 @@ components:
           description: |
             False when the backend cannot answer for the requested algorithm at
             all. That is not an error and does not make the result degraded.
+        skipped:
+          type: boolean
+          description: |
+            True when the check never ran because an earlier gate (length,
+            strength, plaintext denylist) already decided the verdict. Distinct
+            from `error`: nothing failed, there was simply no reason to spend
+            the network call.
         hit:
           type: [boolean, "null"]
           description: Null when the check did not complete.

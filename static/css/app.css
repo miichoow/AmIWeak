@@ -277,6 +277,7 @@ input:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 4px var(--a
 .breakdown .state[data-state="hit"] { color: var(--s0); }
 .breakdown .state[data-state="clear"] { color: var(--s4); }
 .breakdown .state[data-state="unknown"] { color: var(--text-dim); }
+.breakdown .state[data-state="skipped"] { color: var(--text-dim); opacity: 0.55; }
 .breakdown .state[data-state="off"] { color: var(--text-dim); opacity: 0.55; }
 
 .footnote { margin-top: 1.5rem; text-align: center; }

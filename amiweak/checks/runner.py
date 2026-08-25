@@ -339,16 +339,22 @@ class CheckRunner:
             self._metrics.record_backend(name, ok=error is None, seconds=elapsed, error=error)
 
     def _placeholder_results(self) -> list[CheckResult]:
-        return self._ordered({})
+        """Results for a verdict decided by an earlier gate: every check was
+        skipped, not attempted-and-unreachable."""
+        return self._ordered({}, skipped=True)
 
-    def _ordered(self, completed: dict[str, CheckResult]) -> list[CheckResult]:
+    def _ordered(
+        self, completed: dict[str, CheckResult], skipped: bool = False
+    ) -> list[CheckResult]:
         """Order results by the config, filling in any check that did not run."""
         results = []
         for name, check_config in self._config.checks.items():
             if name in completed:
                 results.append(completed[name])
             else:
-                results.append(CheckResult(name, check_config.enabled, None, None, None))
+                results.append(
+                    CheckResult(name, check_config.enabled, None, None, None, skipped=skipped)
+                )
         for name, result in completed.items():
             if name not in self._config.checks:
                 results.append(result)

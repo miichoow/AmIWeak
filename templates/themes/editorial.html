@@ -81,9 +81,9 @@
     <p>Have I Been Pwned · weakpass · <a href="{{ url_for('docs.console') }}">API documentation</a></p>
   </footer>
 
-  <script src="/static/vendor/zxcvbn-ts-core.js" defer></script>
-  <script src="/static/vendor/zxcvbn-ts-language-common.js" defer></script>
-  <script src="/static/vendor/zxcvbn-ts-language-en.js" defer></script>
-  <script src="/static/js/app.js" defer></script>
+  <script src="{{ url_for('static', filename='vendor/zxcvbn-ts-core.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='vendor/zxcvbn-ts-language-common.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='vendor/zxcvbn-ts-language-en.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 </body>
 </html>

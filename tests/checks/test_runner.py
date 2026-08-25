@@ -618,7 +618,9 @@ def test_plaintext_denylist_gate_short_circuits_before_network(config):
 
     dl = Denylist(tokens=("acme",), buckets={})
     runner = CheckRunner([Boom("hibp")], config, denylist=dl)
-    assert runner.evaluate("ACME2026!").verdict is Verdict.DENYLISTED
+    evaluation = runner.evaluate("ACME2026!")
+    assert evaluation.verdict is Verdict.DENYLISTED
+    assert all(result.skipped for result in evaluation.results)
 
 
 def test_gate_is_off_when_match_plaintext_false(tmp_path):

@@ -389,6 +389,7 @@ input[readonly] { opacity: .6; }
 .state[data-state="hit"] { background: var(--danger); }
 .state[data-state="unknown"] { background: var(--warn); }
 .state[data-state="off"] { background: var(--border); color: var(--text-dim); }
+.state[data-state="skipped"] { background: var(--border); color: var(--text-dim); }
 
 .breakdown .name { font-weight: 500; }
 .breakdown .detail { color: var(--text-dim); font-variant-numeric: tabular-nums; }

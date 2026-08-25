@@ -139,6 +139,7 @@
 
   function stateOf(check) {
     if (!check.enabled) { return { key: 'off', icon: '○', detail: 'disabled' }; }
+    if (check.skipped) { return { key: 'skipped', icon: '–', detail: 'not needed' }; }
     if (check.hit === true) {
       return {
         key: 'hit',

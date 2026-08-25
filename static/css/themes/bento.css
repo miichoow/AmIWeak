@@ -356,6 +356,7 @@ input[readonly] { opacity: .55; }
 .state[data-state="clear"] { color: var(--good); background: color-mix(in srgb, var(--good) 18%, transparent); }
 .state[data-state="hit"] { color: var(--danger); background: color-mix(in srgb, var(--danger) 18%, transparent); }
 .state[data-state="unknown"] { color: var(--warn); background: color-mix(in srgb, var(--warn) 18%, transparent); }
+.state[data-state="skipped"] { color: var(--text-dim); opacity: 0.55; }
 
 .breakdown .name { font-weight: 500; }
 .breakdown .detail { color: var(--text-dim); font-variant-numeric: tabular-nums; }

@@ -349,6 +349,7 @@ input[readonly] { opacity: .55; }
 .state[data-state="hit"] { color: var(--red); }
 .state[data-state="unknown"] { color: var(--amber); }
 .state[data-state="off"] { color: #3f5044; }
+.state[data-state="skipped"] { color: #3f5044; }
 
 .breakdown .name { color: var(--text); }
 .breakdown .detail { color: var(--text-dim); }

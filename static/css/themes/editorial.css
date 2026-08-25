@@ -363,6 +363,7 @@ input[readonly] { opacity: .5; }
 .state[data-state="clear"] { color: var(--good); }
 .state[data-state="hit"] { color: var(--accent); }
 .state[data-state="unknown"] { color: var(--warn); }
+.state[data-state="skipped"] { color: var(--text-dim); opacity: 0.55; }
 
 .breakdown .name { font-weight: 500; }
 .breakdown .detail { color: var(--ink-dim); font-variant-numeric: tabular-nums; }
